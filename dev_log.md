@@ -23,3 +23,14 @@
   - Speedup       : 5.83x faster
   - RAM reduction : 65% less memory
 - Status: Core result achieved. Day 4 adds more quantization levels.
+## Day 4 — June 16, 2026
+- Downloaded Q2_K, Q5_K_M, Q8_0 GGUF variants
+- Built automated multi-model leaderboard benchmark
+- Results on Apple Silicon ARM64:
+  - FP32     : 16.52 tok/s (baseline)
+  - Q2_K     : 81.03 tok/s (4.90x)
+  - Q4_K_M   : 102.27 tok/s (6.19x) ← winner
+  - Q5_K_M   : 80.71 tok/s (4.89x)
+  - Q8_0     : 75.88 tok/s (4.59x)
+- Key finding: Q4_K_M is optimal — fastest AND memory efficient
+- Status: Leaderboard complete. Day 5 builds the report dashboard.
