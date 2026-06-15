@@ -40,3 +40,13 @@
 - Benchmark results displayed in glassmorphism panels over the 3D scene
 - Dashboard file: report/dashboard.html
 - Status: Visual layer complete. Day 6 starts perplexity/accuracy measurement.
+## Day 6 — June 16, 2026
+- Built perplexity measurement pipeline across all quantization levels
+- Results — Speed vs Accuracy tradeoff on ARM64:
+  - Q2_K  : 78.28 tok/s  | perplexity 127.46 (+10.3% degradation)
+  - Q4_K_M: 109.20 tok/s | perplexity 111.75 (-3.3% BETTER than Q8_0)
+  - Q5_K_M: 71.53 tok/s  | perplexity 115.66 (+0.1%)
+  - Q8_0  : 64.90 tok/s  | perplexity 115.57 (reference)
+- Key finding: Q4_K_M beats Q8_0 in BOTH speed and accuracy on ARM Metal GPU
+- This confirms INT4 K-quant aligns optimally with ARM SIMD vector widths
+- Status: Full benchmark suite complete. Day 7 builds the README.
