@@ -50,3 +50,14 @@
 - Key finding: Q4_K_M beats Q8_0 in BOTH speed and accuracy on ARM Metal GPU
 - This confirms INT4 K-quant aligns optimally with ARM SIMD vector widths
 - Status: Full benchmark suite complete. Day 7 builds the README.
+## Day 7 — June 16, 2026
+- Built production-grade README with full benchmark tables
+- Added badges: ARM64, Python, MIT, llama.cpp, Metal GPU
+- Documented complete technical deep dive:
+  - K-quant block structure explanation
+  - ARM Metal GPU offload methodology
+  - MLPerf benchmark methodology
+  - Full reproduction instructions
+- Added "What's Next" roadmap for judges
+- README renders live on GitHub front page
+- Status: Documentation complete. Day 8 is demo video.
