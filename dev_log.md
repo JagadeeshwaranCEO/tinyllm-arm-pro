@@ -7,3 +7,9 @@
 - Created full project structure
 - Fought through git merge conflicts — fixed it
 - Status: Environment ready. Day 2 starts inference work.
+## Day 2 — June 15, 2026
+- Downloaded TinyLlama 1.1B (2.2GB) locally
+- Fixed Python 3.14 / httpx network bug by loading from local path
+- First successful inference on Apple Silicon MPS
+- FP32 baseline: 16.52 tokens/sec, model load 3.86s
+- Status: Baseline established. Day 3 starts quantization.
