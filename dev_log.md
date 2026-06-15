@@ -34,3 +34,9 @@
   - Q8_0     : 75.88 tok/s (4.59x)
 - Key finding: Q4_K_M is optimal — fastest AND memory efficient
 - Status: Leaderboard complete. Day 5 builds the report dashboard.
+## Day 5 — June 16, 2026
+- Built interactive 3D deep space performance dashboard using Three.js
+- Features: draggable galaxy, orbital rings, animated counter, scroll parallax
+- Benchmark results displayed in glassmorphism panels over the 3D scene
+- Dashboard file: report/dashboard.html
+- Status: Visual layer complete. Day 6 starts perplexity/accuracy measurement.
