@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Q4_K_M (OURS)",
+    "source": "Our Pipeline",
+    "load_time": 0.42,
+    "ram_gb": 0.71,
+    "tokens_per_sec": 107.55,
+    "perplexity": 29.16,
+    "sample_output": "",
+    "model_size_mb": 667.8
+  },
+  {
+    "name": "Q8_0 (OURS)",
+    "source": "Our Pipeline",
+    "load_time": 0.69,
+    "ram_gb": 1.09,
+    "tokens_per_sec": 75.51,
+    "perplexity": 32.33,
+    "sample_output": "",
+    "model_size_mb": 1169.8
+  },
+  {
+    "name": "Q2_K (OURS)",
+    "source": "Our Pipeline",
+    "load_time": 0.26,
+    "ram_gb": 0.43,
+    "tokens_per_sec": 104.89,
+    "perplexity": 50.72,
+    "sample_output": "",
+    "model_size_mb": 432.1
+  },
+  {
+    "name": "Q4_K_M (REF)",
+    "source": "TheBloke Reference",
+    "load_time": 0.37,
+    "ram_gb": 0.65,
+    "tokens_per_sec": 109.5,
+    "perplexity": 111.75,
+    "sample_output": "",
+    "model_size_mb": 668.8
+  },
+  {
+    "name": "Q8_0 (REF)",
+    "source": "TheBloke Reference",
+    "load_time": 0.69,
+    "ram_gb": 1.1,
+    "tokens_per_sec": 73.02,
+    "perplexity": 115.57,
+    "sample_output": "",
+    "model_size_mb": 1170.8
+  },
+  {
+    "name": "Q2_K (REF)",
+    "source": "TheBloke Reference",
+    "load_time": 0.32,
+    "ram_gb": 0.47,
+    "tokens_per_sec": 81.72,
+    "perplexity": 127.46,
+    "sample_output": "",
+    "model_size_mb": 483.1
+  }
+]
