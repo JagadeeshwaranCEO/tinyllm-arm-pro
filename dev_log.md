@@ -61,3 +61,14 @@
 - Added "What's Next" roadmap for judges
 - README renders live on GitHub front page
 - Status: Documentation complete. Day 8 is demo video.
+
+## Day 8 — June 16, 2026
+- Built llama.cpp v9660 from source on ARM64 (AppleClang 17)
+- Confirmed ARM64 binary: NEON, I8MM, dotprod, Metal all enabled
+- Built own quantization pipeline from scratch
+- Quantized TinyLlama 1.1B ourselves (not downloaded):
+  - F16 source  : 2.0GB  (16.00 BPW)
+  - Q2_K (ours) : 412MB  (3.14 BPW) — 80% compression
+  - Q4_K_M (ours): 637MB (4.85 BPW) — 69% compression
+  - Q8_0 (ours) : 1.1GB  (8.50 BPW) — 45% compression
+- Status: Own quantization pipeline complete. Day 9 benchmarks our models.
