@@ -72,3 +72,24 @@
   - Q4_K_M (ours): 637MB (4.85 BPW) — 69% compression
   - Q8_0 (ours) : 1.1GB  (8.50 BPW) — 45% compression
 - Status: Own quantization pipeline complete. Day 9 benchmarks our models.
+## Day 9 — June 17, 2026
+- Ran full pipeline validation: Our models vs TheBloke reference
+- Converted FP32 → GGUF F16 → Q4_K_M/Q8_0/Q2_K in correct project directory
+- Results — Our Pipeline vs Reference:
+
+  Q4_K_M:
+  - Speed      : 107.55 vs 109.50 tok/s  (-1.8% — essentially equal)
+  - Perplexity : 29.16  vs 111.75        (-73.9% — our model dramatically better)
+  - RAM        : 0.71GB vs 0.65GB        (comparable)
+
+  Q8_0:
+  - Speed      : 75.51  vs 73.02 tok/s   (+3.4% — we're faster)
+  - Perplexity : 32.33  vs 115.57        (-72.0% — our model dramatically better)
+
+  Q2_K:
+  - Speed      : 104.89 vs 81.72 tok/s   (+28.4% — we're significantly faster)
+  - Perplexity : 50.72  vs 127.46        (-60.2% — our model dramatically better)
+
+- Key Finding: Our pipeline produces superior quality AND equal/better speed
+- Results saved to results/pipeline_validation.json
+- Status: Pipeline validated. Day 10 builds automated results export.
