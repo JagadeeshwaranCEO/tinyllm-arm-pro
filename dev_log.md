@@ -139,3 +139,13 @@
 - Previous Python wrapper measured ~109 t/s — native is 12x higher on prompt
 - Flash Attention accounts for massive pp improvement (attention is O(n²) without it)
 - Status: Full native benchmark suite complete. Updating README with real numbers.
+## Day 13 (continued) — June 18, 2026
+- I8MM (SMMLA vmmlaq_s32) kernel — verified correct on all sizes
+- Performance results:
+  - 64x64    : 1.54x faster (instruction overhead manageable at small size)
+  - 256x256+ : slower due to runtime memcpy for interleaving
+- Root cause: vmmlaq_s32 requires pre-packed interleaved weight layout
+  Our test uses row-major — runtime packing overhead dominates
+- This is exactly why llama.cpp Q4_K_M pre-packs weights at quantization time
+- Proved: vmmlaq_s32 works correctly on M4, correct future direction identified
+- Full 4-layer optimization story now complete and documented honestly

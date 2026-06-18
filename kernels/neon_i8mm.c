@@ -5,6 +5,10 @@
 //
 // Your M4 confirmed I8MM support during our cmake build:
 // "Performing Test GGML_MACHINE_SUPPORTS_i8mm - Success"
+//
+// v2: Pre-packed B matrix eliminates runtime interleaving overhead
+// Production engines (llama.cpp) pack weights at quantization time.
+// We simulate that here — B is packed ONCE, hot loop is clean SMMLA.
 
 #include <arm_neon.h>
 #include <stdio.h>
@@ -25,90 +29,69 @@ void naive_i8_matmul(
                 C[i*N+j] += (int32_t)A[i*K+k] * (int32_t)B[k*N+j];
 }
 
-// ── I8MM SMMLA kernel ─────────────────────────────────
-// vmmlaq_s32 processes a 2×8 block of INT8 A and
-// an 8×2 block of INT8 B, producing a 2×2 INT32 result.
-// That's 32 multiply-accumulates in a SINGLE instruction.
-void i8mm_matmul(
-    const int8_t *A, const int8_t *B,
+// ── Pre-pack B for SMMLA layout ──────────────────────
+// Pack B from row-major into interleaved format that
+// vmmlaq_s32 expects. Done ONCE before inference —
+// exactly how llama.cpp stores quantized weights on disk.
+//
+// Input:  B[K][N]  row-major
+// Output: B_packed — tiles of [col0_rows0-7 | col1_rows0-7]
+void pack_b_i8mm(
+    const int8_t *B, int8_t *B_packed,
+    int K, int N)
+{
+    for (int j = 0; j + 1 < N; j += 2) {
+        for (int k = 0; k + 7 < K; k += 8) {
+            int8_t *dst = &B_packed[(j/2) * K * 2 + k * 2];
+            for (int kk = 0; kk < 8; kk++) {
+                dst[kk]   = B[(k+kk)*N + j];
+                dst[kk+8] = B[(k+kk)*N + j+1];
+            }
+        }
+    }
+}
+
+// ── I8MM with pre-packed B (production-grade) ────────
+// Hot loop: vld1q_s8 + vmmlaq_s32 + vld1q_s8
+// No runtime interleaving. This is what real engines do.
+void i8mm_matmul_packed(
+    const int8_t *A, const int8_t *B_packed,
     int32_t *C, int M, int N, int K)
 {
     memset(C, 0, M * N * sizeof(int32_t));
 
-    // Process 2 rows of A and 8 columns of B at a time
     for (int i = 0; i + 1 < M; i += 2) {
-        for (int j = 0; j + 7 < N; j += 8) {
-            // 4 accumulators cover a 2×8 output tile
-            // Each int32x4_t holds a 2×2 result block
-            int32x4_t acc0 = vdupq_n_s32(0);
-            int32x4_t acc1 = vdupq_n_s32(0);
-            int32x4_t acc2 = vdupq_n_s32(0);
-            int32x4_t acc3 = vdupq_n_s32(0);
+        for (int j = 0; j + 1 < N; j += 2) {
+            int32x4_t acc = vdupq_n_s32(0);
+
+            // B_packed tile for this (j, j+1) column pair
+            const int8_t *b_tile = &B_packed[(j/2) * K * 2];
 
             for (int k = 0; k + 7 < K; k += 8) {
-                // Load 2 rows of A, each 8 INT8 values
-                // Interleaved into a single 16-byte register
+                // Pack 2 rows of A (stays in registers, cheap)
                 int8_t a_buf[16];
                 memcpy(a_buf,     &A[(i+0)*K + k], 8);
                 memcpy(a_buf + 8, &A[(i+1)*K + k], 8);
                 int8x16_t a_vec = vld1q_s8(a_buf);
 
-                // Process 4 pairs of B columns (4 × 2-col blocks)
-                // Each b_vec is 8 rows × 2 cols of INT8
-                int8_t b_buf[16];
+                // Load pre-packed B tile — sequential, cache-friendly
+                int8x16_t b_vec = vld1q_s8(&b_tile[k * 2]);
 
-                // Block 0: columns j+0, j+1
-                for (int kk = 0; kk < 8; kk++) {
-                    b_buf[kk]   = B[(k+kk)*N + j+0];
-                    b_buf[kk+8] = B[(k+kk)*N + j+1];
-                }
-                acc0 = vmmlaq_s32(acc0, a_vec, vld1q_s8(b_buf));
-
-                // Block 1: columns j+2, j+3
-                for (int kk = 0; kk < 8; kk++) {
-                    b_buf[kk]   = B[(k+kk)*N + j+2];
-                    b_buf[kk+8] = B[(k+kk)*N + j+3];
-                }
-                acc1 = vmmlaq_s32(acc1, a_vec, vld1q_s8(b_buf));
-
-                // Block 2: columns j+4, j+5
-                for (int kk = 0; kk < 8; kk++) {
-                    b_buf[kk]   = B[(k+kk)*N + j+4];
-                    b_buf[kk+8] = B[(k+kk)*N + j+5];
-                }
-                acc2 = vmmlaq_s32(acc2, a_vec, vld1q_s8(b_buf));
-
-                // Block 3: columns j+6, j+7
-                for (int kk = 0; kk < 8; kk++) {
-                    b_buf[kk]   = B[(k+kk)*N + j+6];
-                    b_buf[kk+8] = B[(k+kk)*N + j+7];
-                }
-                acc3 = vmmlaq_s32(acc3, a_vec, vld1q_s8(b_buf));
+                // SMMLA — 32 INT8 multiply-accumulates, ONE instruction
+                // This is the entire point of I8MM on ARMv8.6-A
+                acc = vmmlaq_s32(acc, a_vec, b_vec);
             }
 
-            // Store 2×8 output tile back to C
-            // acc layout from vmmlaq_s32:
-            //   lane 0: C[i][j+c0], lane 1: C[i][j+c1]
-            //   lane 2: C[i+1][j+c0], lane 3: C[i+1][j+c1]
-            C[(i+0)*N+j+0] += vgetq_lane_s32(acc0, 0);
-            C[(i+0)*N+j+1] += vgetq_lane_s32(acc0, 1);
-            C[(i+1)*N+j+0] += vgetq_lane_s32(acc0, 2);
-            C[(i+1)*N+j+1] += vgetq_lane_s32(acc0, 3);
-
-            C[(i+0)*N+j+2] += vgetq_lane_s32(acc1, 0);
-            C[(i+0)*N+j+3] += vgetq_lane_s32(acc1, 1);
-            C[(i+1)*N+j+2] += vgetq_lane_s32(acc1, 2);
-            C[(i+1)*N+j+3] += vgetq_lane_s32(acc1, 3);
-
-            C[(i+0)*N+j+4] += vgetq_lane_s32(acc2, 0);
-            C[(i+0)*N+j+5] += vgetq_lane_s32(acc2, 1);
-            C[(i+1)*N+j+4] += vgetq_lane_s32(acc2, 2);
-            C[(i+1)*N+j+5] += vgetq_lane_s32(acc2, 3);
-
-            C[(i+0)*N+j+6] += vgetq_lane_s32(acc3, 0);
-            C[(i+0)*N+j+7] += vgetq_lane_s32(acc3, 1);
-            C[(i+1)*N+j+6] += vgetq_lane_s32(acc3, 2);
-            C[(i+1)*N+j+7] += vgetq_lane_s32(acc3, 3);
+            // Extract 2x2 output block from accumulator
+            // vmmlaq_s32 lane layout:
+            //   lane 0: C[row0][col0]
+            //   lane 1: C[row0][col1]
+            //   lane 2: C[row1][col0]
+            //   lane 3: C[row1][col1]
+            C[(i+0)*N + j+0] += vgetq_lane_s32(acc, 0);
+            C[(i+0)*N + j+1] += vgetq_lane_s32(acc, 1);
+            C[(i+1)*N + j+0] += vgetq_lane_s32(acc, 2);
+            C[(i+1)*N + j+1] += vgetq_lane_s32(acc, 3);
         }
     }
 }
@@ -133,23 +116,24 @@ void run_i8mm_benchmark(int M, int N, int K, int iters) {
     printf("Matrix: %dx%d * %dx%d  (INT8 inputs)\n", M, K, K, N);
     printf("========================================\n");
 
-    int8_t  *A     = malloc(M * K);
-    int8_t  *B     = malloc(K * N);
-    int32_t *C_ref = calloc(M * N, sizeof(int32_t));
-    int32_t *C_i8  = calloc(M * N, sizeof(int32_t));
+    int8_t  *A        = malloc(M * K);
+    int8_t  *B        = malloc(K * N);
+    int8_t  *B_packed = malloc(K * N);  // same size, different layout
+    int32_t *C_ref    = calloc(M * N, sizeof(int32_t));
+    int32_t *C_packed = calloc(M * N, sizeof(int32_t));
 
-    // Fill with small values to avoid int8 overflow
+    // Fill with small values to avoid INT8 overflow
     for (int i = 0; i < M*K; i++) A[i] = (int8_t)((rand() % 20) - 10);
     for (int i = 0; i < K*N; i++) B[i] = (int8_t)((rand() % 20) - 10);
 
-    // Reference
+    // Pre-pack B ONCE — simulates quantization-time weight packing
+    pack_b_i8mm(B, B_packed, K, N);
+
+    // Correctness check
     naive_i8_matmul(A, B, C_ref, M, N, K);
-
-    // I8MM
-    i8mm_matmul(A, B, C_i8, M, N, K);
-
-    int ok = verify(C_ref, C_i8, M*N);
-    printf("Correctness: %s\n", ok ? "PASSED ✅" : "FAILED ❌");
+    i8mm_matmul_packed(A, B_packed, C_packed, M, N, K);
+    printf("Correctness (packed): %s\n",
+           verify(C_ref, C_packed, M*N) ? "PASSED ✅" : "FAILED ❌");
 
     // Benchmark naive INT8
     double start = get_time_ms();
@@ -159,27 +143,29 @@ void run_i8mm_benchmark(int M, int N, int K, int iters) {
     }
     double naive_t = (get_time_ms() - start) / iters;
 
-    // Benchmark I8MM
+    // Benchmark I8MM with pre-packed B
     start = get_time_ms();
     for (int it = 0; it < iters; it++) {
-        memset(C_i8, 0, M*N*sizeof(int32_t));
-        i8mm_matmul(A, B, C_i8, M, N, K);
+        memset(C_packed, 0, M*N*sizeof(int32_t));
+        i8mm_matmul_packed(A, B_packed, C_packed, M, N, K);
     }
-    double i8mm_t = (get_time_ms() - start) / iters;
+    double packed_t = (get_time_ms() - start) / iters;
 
-    printf("Naive INT8       : %.4f ms\n", naive_t);
-    printf("I8MM (SMMLA)     : %.4f ms  ->  %.2fx speedup\n",
-           i8mm_t, naive_t / i8mm_t);
+    printf("Naive INT8          : %.4f ms\n", naive_t);
+    printf("I8MM pre-packed     : %.4f ms  ->  %.2fx speedup\n",
+           packed_t, naive_t / packed_t);
+    printf("(B packed once at init — not counted in benchmark time)\n");
 
-    free(A); free(B); free(C_ref); free(C_i8);
+    free(A); free(B); free(B_packed); free(C_ref); free(C_packed);
 }
 
 int main() {
     printf("\n");
     printf("==================================================\n");
-    printf("TinyLLM-ARM-Pro | I8MM (SMMLA) Benchmark\n");
-    printf("ARMv8.6-A vmmlaq_s32 — hardware INT8 matrix mul\n");
+    printf("TinyLLM-ARM-Pro | I8MM (SMMLA) Benchmark v2\n");
+    printf("ARMv8.6-A vmmlaq_s32 + pre-packed weight layout\n");
     printf("Apple Silicon M4 | MTLGPUFamilyApple9\n");
+    printf("Production-grade: same approach as llama.cpp\n");
     printf("==================================================\n");
 
     srand(42);
@@ -193,7 +179,8 @@ int main() {
     printf("\n==================================================\n");
     printf("✅ I8MM benchmark complete.\n");
     printf("vmmlaq_s32: 32 INT8 multiply-accumulates per instruction\n");
-    printf("This is what powers quantized inference in llama.cpp\n");
+    printf("Pre-packed B: eliminates runtime interleaving overhead\n");
+    printf("This matches how llama.cpp stores quantized weights.\n");
     printf("==================================================\n\n");
 
     return 0;
