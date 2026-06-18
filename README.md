@@ -298,3 +298,14 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 *Built for the ARM Create: AI Optimization Challenge 2026*
 *"From Tamil Nadu to ARM silicon — edge AI for everyone."*
+## 🏆 Key Results
+
+| Metric | Python Wrapper | Native llama-bench |
+|--------|---------------|-------------------|
+| **Prompt Processing (pp512)** | — | **1329.34 t/s** |
+| **Text Generation (tg128)** | 109.20 t/s | **123.98 t/s** |
+| **Speedup over FP32** | **6.61×** | — |
+| **RAM Reduction** | **68%** | — |
+| **Our Pipeline vs Reference** | **73.9% better perplexity** | — |
+| **NEON v2 Kernel Speedup** | **12.52×** | — |
+| **Hardware** | Apple M4 ARM64 + Metal GPU | — |

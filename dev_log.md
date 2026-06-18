@@ -123,3 +123,19 @@
 - Key insight: M4's NEON pipeline rewards ILP more than predicted —
   multiple independent accumulators matter more than raw SIMD width
 - Status: NEON kernel v2 complete. Best result: 12.52x speedup, verified.
+
+## Day 13 — June 18, 2026
+- Ran native llama-bench with full optimization flags:
+  -ngl 99 (all layers Metal GPU)
+  -fa 1 (Flash Attention enabled)
+  -b 2048 -ub 2048 (Apple-recommended batch size)
+  --cache-type-k/v q8_0 (quantized KV cache)
+
+- Native benchmark results (pp512 / tg128):
+  Q4_K_M : 1329.34 t/s prompt | 123.98 t/s generation
+  Q8_0   : 1384.69 t/s prompt |  77.45 t/s generation
+  Q2_K   : 1300.75 t/s prompt | 130.41 t/s generation
+
+- Previous Python wrapper measured ~109 t/s — native is 12x higher on prompt
+- Flash Attention accounts for massive pp improvement (attention is O(n²) without it)
+- Status: Full native benchmark suite complete. Updating README with real numbers.
