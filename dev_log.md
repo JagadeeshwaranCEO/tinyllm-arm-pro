@@ -110,3 +110,16 @@
 - Confirmed "live data connected" status — real numbers, zero hardcoding
 - Tested via local server: python3 -m http.server 8000
 - Status: Dashboard fully automated. Day 12 starts NEON kernel work.
+
+## Day 12 (continued) — June 18, 2026
+- Built NEON v2: 4-row blocking + 4 independent accumulators
+- Breaks single FMA dependency chain from v1, improves cache reuse
+- Results (naive vs v1 vs v2):
+  - 64x64x64      : v1 4.96x -> v2 12.12x  (2.45x improvement)
+  - 256x256x256   : v1 3.63x -> v2 11.19x  (3.08x improvement)
+  - 512x512x512   : v1 3.57x -> v2 12.10x  (3.38x improvement)
+  - 2048x64x2048  : v1 3.91x -> v2 12.52x  (3.20x improvement)
+- All results verified correct against naive baseline
+- Key insight: M4's NEON pipeline rewards ILP more than predicted —
+  multiple independent accumulators matter more than raw SIMD width
+- Status: NEON kernel v2 complete. Best result: 12.52x speedup, verified.
