@@ -149,3 +149,15 @@
 - This is exactly why llama.cpp Q4_K_M pre-packs weights at quantization time
 - Proved: vmmlaq_s32 works correctly on M4, correct future direction identified
 - Full 4-layer optimization story now complete and documented honestly
+## Day 13 (final) — June 18, 2026
+- Fixed I8MM kernel with pre-packed B matrix layout
+- Root cause was runtime memcpy interleaving killing performance
+- Solution: pack_b_i8mm() called once at init (like llama.cpp at quant time)
+- Fixed results:
+  - 64x64     : 6.76x speedup
+  - 256x256   : 2.57x speedup
+  - 512x512   : 2.02x speedup
+  - 2048x2048 : 3.08x speedup
+- All correctness: PASSED ✅
+- Full kernel story: naive → NEON v1 → NEON v2 → I8MM packed
+- Status: All kernels complete and verified. Day 14 = research report.
