@@ -196,3 +196,16 @@
 - Updated research report Limitations section and added Section 4.1.3
 - Status: One major limitation genuinely fixed with real measurement, not just rewording
 - Next: multi-reference comparison (Day 17), I8MM multi-tile blocking (Day 18)
+
+## Day 17 — June 19, 2026
+- Downloaded second independent Q4_K_M source (andrijdavid/TinyLlama-1.1B-Chat-v1.0-GGUF)
+- Ran identical WikiText-2 perplexity test for direct comparison
+- Result: Ours 8.7281 vs Reference 8.7400 — statistically equivalent (within margin of error)
+- IMPORTANT FINDING: corrects earlier 73.9% pseudo-perplexity claim
+- Conclusion: our pipeline correctly reproduces expected Q4_K_M quality —
+  the real contribution is a correct, from-scratch, verified pipeline,
+  not an unusual quality advantage
+- Updated research report abstract and Section 4.2.1 with honest correction
+- This is the right scientific outcome — multiple independent Q4_K_M builds
+  SHOULD converge since it's a deterministic algorithm
+- Status: Report now scientifically rigorous and externally validated

@@ -95,7 +95,70 @@ void i8mm_matmul_packed(
         }
     }
 }
+// ── I8MM with 4-tile blocking (wider output per pass) ─
+// Processes 2 rows x 8 columns per outer iteration instead of 2x2.
+// Reuses the same A vector across 4 B tiles before reloading —
+// reduces A reload overhead and improves instruction-level parallelism
+// via 4 independent accumulators, same principle as NEON v2.
+void i8mm_matmul_tiled(
+    const int8_t *A, const int8_t *B_packed,
+    int32_t *C, int M, int N, int K)
+{
+    memset(C, 0, M * N * sizeof(int32_t));
 
+    // B_packed layout: tiles of [col_pair][K*2], same packing as before
+    // but we now read 4 consecutive column-pair tiles together
+    for (int i = 0; i + 1 < M; i += 2) {
+        for (int j = 0; j + 7 < N; j += 8) {
+            // 4 independent accumulators -- one per column-pair tile
+            // Breaks dependency chain just like NEON v2 did for FP32
+            int32x4_t acc0 = vdupq_n_s32(0);
+            int32x4_t acc1 = vdupq_n_s32(0);
+            int32x4_t acc2 = vdupq_n_s32(0);
+            int32x4_t acc3 = vdupq_n_s32(0);
+
+            const int8_t *tile0 = &B_packed[((j+0)/2) * K * 2];
+            const int8_t *tile1 = &B_packed[((j+2)/2) * K * 2];
+            const int8_t *tile2 = &B_packed[((j+4)/2) * K * 2];
+            const int8_t *tile3 = &B_packed[((j+6)/2) * K * 2];
+
+            for (int k = 0; k + 7 < K; k += 8) {
+                // Load A rows ONCE, reuse across all 4 tiles
+                int8_t a_buf[16];
+                memcpy(a_buf,     &A[(i+0)*K + k], 8);
+                memcpy(a_buf + 8, &A[(i+1)*K + k], 8);
+                int8x16_t a_vec = vld1q_s8(a_buf);
+
+                // 4 independent SMMLA calls -- CPU can pipeline these
+                acc0 = vmmlaq_s32(acc0, a_vec, vld1q_s8(&tile0[k * 2]));
+                acc1 = vmmlaq_s32(acc1, a_vec, vld1q_s8(&tile1[k * 2]));
+                acc2 = vmmlaq_s32(acc2, a_vec, vld1q_s8(&tile2[k * 2]));
+                acc3 = vmmlaq_s32(acc3, a_vec, vld1q_s8(&tile3[k * 2]));
+            }
+
+            // Store all 4 tiles (8 columns total)
+            C[(i+0)*N+j+0] += vgetq_lane_s32(acc0, 0);
+            C[(i+0)*N+j+1] += vgetq_lane_s32(acc0, 1);
+            C[(i+1)*N+j+0] += vgetq_lane_s32(acc0, 2);
+            C[(i+1)*N+j+1] += vgetq_lane_s32(acc0, 3);
+
+            C[(i+0)*N+j+2] += vgetq_lane_s32(acc1, 0);
+            C[(i+0)*N+j+3] += vgetq_lane_s32(acc1, 1);
+            C[(i+1)*N+j+2] += vgetq_lane_s32(acc1, 2);
+            C[(i+1)*N+j+3] += vgetq_lane_s32(acc1, 3);
+
+            C[(i+0)*N+j+4] += vgetq_lane_s32(acc2, 0);
+            C[(i+0)*N+j+5] += vgetq_lane_s32(acc2, 1);
+            C[(i+1)*N+j+4] += vgetq_lane_s32(acc2, 2);
+            C[(i+1)*N+j+5] += vgetq_lane_s32(acc2, 3);
+
+            C[(i+0)*N+j+6] += vgetq_lane_s32(acc3, 0);
+            C[(i+0)*N+j+7] += vgetq_lane_s32(acc3, 1);
+            C[(i+1)*N+j+6] += vgetq_lane_s32(acc3, 2);
+            C[(i+1)*N+j+7] += vgetq_lane_s32(acc3, 3);
+        }
+    }
+}
 // ── Timer ─────────────────────────────────────────────
 double get_time_ms() {
     struct timespec ts;
@@ -118,24 +181,25 @@ void run_i8mm_benchmark(int M, int N, int K, int iters) {
 
     int8_t  *A        = malloc(M * K);
     int8_t  *B        = malloc(K * N);
-    int8_t  *B_packed = malloc(K * N);  // same size, different layout
+    int8_t  *B_packed = malloc(K * N);
     int32_t *C_ref    = calloc(M * N, sizeof(int32_t));
     int32_t *C_packed = calloc(M * N, sizeof(int32_t));
+    int32_t *C_tiled  = calloc(M * N, sizeof(int32_t));
 
-    // Fill with small values to avoid INT8 overflow
     for (int i = 0; i < M*K; i++) A[i] = (int8_t)((rand() % 20) - 10);
     for (int i = 0; i < K*N; i++) B[i] = (int8_t)((rand() % 20) - 10);
 
-    // Pre-pack B ONCE — simulates quantization-time weight packing
     pack_b_i8mm(B, B_packed, K, N);
 
-    // Correctness check
     naive_i8_matmul(A, B, C_ref, M, N, K);
     i8mm_matmul_packed(A, B_packed, C_packed, M, N, K);
+    i8mm_matmul_tiled(A, B_packed, C_tiled, M, N, K);
+
     printf("Correctness (packed): %s\n",
            verify(C_ref, C_packed, M*N) ? "PASSED ✅" : "FAILED ❌");
+    printf("Correctness (tiled) : %s\n",
+           verify(C_ref, C_tiled, M*N) ? "PASSED ✅" : "FAILED ❌");
 
-    // Benchmark naive INT8
     double start = get_time_ms();
     for (int it = 0; it < iters; it++) {
         memset(C_ref, 0, M*N*sizeof(int32_t));
@@ -143,7 +207,6 @@ void run_i8mm_benchmark(int M, int N, int K, int iters) {
     }
     double naive_t = (get_time_ms() - start) / iters;
 
-    // Benchmark I8MM with pre-packed B
     start = get_time_ms();
     for (int it = 0; it < iters; it++) {
         memset(C_packed, 0, M*N*sizeof(int32_t));
@@ -151,12 +214,20 @@ void run_i8mm_benchmark(int M, int N, int K, int iters) {
     }
     double packed_t = (get_time_ms() - start) / iters;
 
-    printf("Naive INT8          : %.4f ms\n", naive_t);
-    printf("I8MM pre-packed     : %.4f ms  ->  %.2fx speedup\n",
-           packed_t, naive_t / packed_t);
-    printf("(B packed once at init — not counted in benchmark time)\n");
+    start = get_time_ms();
+    for (int it = 0; it < iters; it++) {
+        memset(C_tiled, 0, M*N*sizeof(int32_t));
+        i8mm_matmul_tiled(A, B_packed, C_tiled, M, N, K);
+    }
+    double tiled_t = (get_time_ms() - start) / iters;
 
-    free(A); free(B); free(B_packed); free(C_ref); free(C_packed);
+    printf("Naive INT8       : %.4f ms\n", naive_t);
+    printf("I8MM packed (2x2): %.4f ms  ->  %.2fx speedup\n", packed_t, naive_t / packed_t);
+    printf("I8MM tiled (2x8) : %.4f ms  ->  %.2fx speedup\n", tiled_t, naive_t / tiled_t);
+    printf("tiled vs packed improvement: %.2fx\n", packed_t / tiled_t);
+
+    free(A); free(B); free(B_packed);
+    free(C_ref); free(C_packed); free(C_tiled);
 }
 
 int main() {
