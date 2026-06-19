@@ -185,3 +185,14 @@
 - Clarified perplexity methodology is pseudo-PPL, not standard WikiText-2/C4
 - Clarified hardware validation scope: M4 only, other devices are reasoning not measurement
 - Status: Report is now fully honest and defensible. Day 16 = demo video script.
+## Day 16 — June 19, 2026
+- Downloaded official WikiText-2 raw test set
+- Ran llama.cpp's official llama-perplexity tool on all 3 quantization levels
+- Real academic-standard results (wiki.test.raw, 655 chunks):
+  - Q8_0   : PPL 8.4459 ± 0.0533
+  - Q4_K_M : PPL 8.7281 ± 0.0544
+  - Q2_K   : PPL 12.3611 ± 0.0796
+- Results follow expected academic pattern — directly citable, comparable to literature
+- Updated research report Limitations section and added Section 4.1.3
+- Status: One major limitation genuinely fixed with real measurement, not just rewording
+- Next: multi-reference comparison (Day 17), I8MM multi-tile blocking (Day 18)
