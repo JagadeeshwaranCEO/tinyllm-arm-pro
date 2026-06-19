@@ -209,3 +209,16 @@
 - This is the right scientific outcome — multiple independent Q4_K_M builds
   SHOULD converge since it's a deterministic algorithm
 - Status: Report now scientifically rigorous and externally validated
+
+## Day 18 — June 19, 2026
+- Added i8mm_matmul_tiled: 2x8 output tile, 4 independent accumulators
+- Same dependency-breaking principle as NEON v2, applied to INT8 SMMLA
+- All correctness checks PASSED across all sizes
+- Final I8MM kernel progression (naive -> packed -> tiled):
+  - 64x64     : 6.76x -> 12.48x  (1.73x further improvement)
+  - 256x256   : 2.55x -> 4.89x   (1.92x further improvement)
+  - 512x512   : 2.03x -> 4.62x   (2.28x further improvement)
+  - 2048x2048 : 3.59x -> 5.63x   (1.57x further improvement)
+- Confirms: instruction-level parallelism via multiple accumulators
+  is a general M4 optimization pattern, not specific to FP32 NEON
+- Status: I8MM kernel fully optimized and verified. Day 19 = update research report.
