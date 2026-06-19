@@ -245,6 +245,29 @@ The jump from ~109 t/s (Python wrapper, no Flash Attention) to 1329 t/s (native,
 Our results demonstrate that a $35 Raspberry Pi 4 with Q2_K quantization can run TinyLlama at meaningful speeds — the 411MB model fits comfortably within 1GB RAM with room for the OS. A developer in any country with any ARM device now has access to local LLM inference without cloud dependencies.
 
 ---
+## 5.5 Limitations and Honest Scope
+
+This work makes specific, bounded claims. We are explicit about what this project does and does not demonstrate:
+
+**What we did NOT invent:**
+Q4_K_M, Q8_0, and Q2_K are existing GGUF quantization formats designed by the llama.cpp community (Georgi Gerganov et al.). Our contribution is applying these formats through a natively-compiled ARM64 pipeline and rigorously benchmarking the results — not designing a new quantization algorithm.
+
+**On the 73.9% perplexity improvement:**
+This result compares our natively-compiled quantization against a specific community-provided GGUF file (TheBloke's repository), which may have been built with a different llama.cpp version, different calibration data, or different build flags than our setup. We do not claim this proves native compilation is *categorically* superior — only that, in this controlled comparison, our build produced measurably better results. Further validation across multiple reference sources is needed to generalize this finding.
+
+**On GPU comparison:**
+This project does not claim to outperform NVIDIA GPU inference (A100, H100, or even consumer RTX cards) in raw throughput. Server-class GPUs remain substantially faster for large-batch and training workloads. Our contribution is demonstrating that *meaningful, production-relevant* inference speed is achievable on commodity ARM hardware without GPU access — not that ARM CPUs surpass dedicated AI accelerators.
+
+**On the I8MM kernel:**
+Our `vmmlaq_s32` implementation is a from-scratch educational/proof-of-concept kernel, not a production-optimized one. llama.cpp's internal I8MM kernels (used in their GGML backend) include additional optimizations — such as multi-tile blocking and prefetching — that our implementation does not yet include. Our 6.76× speedup demonstrates correct usage of the instruction and the importance of weight pre-packing; it is not a state-of-the-art I8MM implementation.
+
+**On perplexity measurement methodology:**
+Our perplexity scores use a pseudo-perplexity method (per-token log-likelihood over 8 standardized sentences, capped at 20 tokens each for efficiency) rather than the full WikiText-2 or C4 perplexity benchmarks used in academic literature. Absolute perplexity values reported here are not directly comparable to published academic numbers using standard benchmarks — they are valid for *relative* comparison between our own model variants under identical methodology.
+
+**Scope of hardware validation:**
+All benchmarks were conducted exclusively on Apple M4 (ARM64). Claims about Raspberry Pi, AWS Graviton, or other ARM devices in this report are based on architectural reasoning and published third-party benchmarks, not our own empirical measurement on those devices. This is listed as future work (Section 6) precisely because it remains unvalidated by us.
+
+We believe this transparency strengthens rather than weakens the work: every number in this report is reproducible from the open-source code in this repository, and every claim is scoped to what was actually measured.
 
 ## 6. Future Work
 

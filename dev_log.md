@@ -161,3 +161,27 @@
 - All correctness: PASSED ✅
 - Full kernel story: naive → NEON v1 → NEON v2 → I8MM packed
 - Status: All kernels complete and verified. Day 14 = research report.
+
+## Day 14 — June 18, 2026
+- Wrote complete research report (report/research_report.md)
+- 8 pages covering:
+  - Abstract with all key numbers
+  - Background on NEON, I8MM, K-Quant
+  - Full methodology (build environment, benchmark setup)
+  - Results: quantization leaderboard, pipeline validation,
+    native llama-bench, NEON kernels, I8MM kernels
+  - Discussion: why native compilation matters, Q4_K_M sweet spot
+  - Future work section
+  - Conclusion with mission statement
+- All numbers sourced from real benchmark outputs
+- Status: Research report complete. Day 15 = demo video.
+
+## Day 15 — June 19, 2026
+- Added Limitations and Honest Scope section to research report
+- Explicitly clarified: did not invent quantization formats, used existing GGUF
+- Clarified 73.9% finding is a controlled comparison, not a categorical claim
+- Clarified ARM does not beat GPU throughput — different value proposition
+- Clarified I8MM kernel is educational, not production-optimized
+- Clarified perplexity methodology is pseudo-PPL, not standard WikiText-2/C4
+- Clarified hardware validation scope: M4 only, other devices are reasoning not measurement
+- Status: Report is now fully honest and defensible. Day 16 = demo video script.
