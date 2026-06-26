@@ -1,0 +1,17 @@
+{
+  "generated_at": "2026-06-19T00:00:00",
+  "methodology": "llama-perplexity (official llama.cpp tool, wiki.test.raw, 655 chunks, n_ctx=512)",
+  "source": "academic standard, directly comparable to published literature",
+  "results": [
+    {"name": "Q8_0", "perplexity": 8.4459, "stderr": 0.0533, "bits_per_weight": 8.50},
+    {"name": "Q4_K_M", "perplexity": 8.7281, "stderr": 0.0544, "bits_per_weight": 4.85},
+    {"name": "Q2_K", "perplexity": 12.3611, "stderr": 0.0796, "bits_per_weight": 3.14}
+  ],
+  "second_source_validation": {
+    "source": "andrijdavid/TinyLlama-1.1B-Chat-v1.0-GGUF",
+    "model": "Q4_K_M",
+    "perplexity": 8.7400,
+    "stderr": 0.0546,
+    "note": "statistically equivalent to ours (8.7281) within margin of error"
+  }
+}
