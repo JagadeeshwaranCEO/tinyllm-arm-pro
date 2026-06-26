@@ -1,0 +1,22 @@
+{
+  "generated_at": "2026-06-26T09:44:13.005985",
+  "methodology": "llama-bench native (Flash Attention, Metal GPU, q8_0 KV cache)",
+  "flags": "-ngl 99 -fa 1 -b 2048 -ub 2048 --cache-type-k q8_0 --cache-type-v q8_0 -p 512 -n 128 -r 5",
+  "results": [
+    {
+      "name": "Q4_K_M",
+      "pp512_tokens_per_sec": 1314.82,
+      "tg128_tokens_per_sec": 123.2
+    },
+    {
+      "name": "Q8_0",
+      "pp512_tokens_per_sec": 1369.06,
+      "tg128_tokens_per_sec": 78.96
+    },
+    {
+      "name": "Q2_K",
+      "pp512_tokens_per_sec": 1280.44,
+      "tg128_tokens_per_sec": 130.48
+    }
+  ]
+}
