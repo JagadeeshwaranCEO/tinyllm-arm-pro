@@ -1,0 +1,66 @@
+{
+  "generated_at": "2026-06-28T22:44:29.283700",
+  "test_type": "context_length_scaling_stress_test_v2",
+  "methodology": "Direct decode-loop timing using model.scores argmax (proven API from accuracy.py), 5 repeats averaged per context level. Supersedes v1, which used subtraction of two model() calls and suffered from doubled measurement noise.",
+  "known_limitation": "Python-level per-token eval() loop has more call overhead than llama.cpp's internal batched generation, so absolute decode speeds here read lower than native llama-bench tg128. The TREND across context lengths is the valid signal, not the absolute tok/s value.",
+  "model": "Q4_K_M",
+  "max_context": 2048,
+  "note": "RAM grows measurably with context length in this version, since the manual token-by-token eval() loop accumulates KV cache incrementally (unlike v1's high-level model() call, which showed flat RAM because it manages caching internally)",
+  "results": [
+    {
+      "actual_prompt_tokens": 123,
+      "context_utilization_pct": 6.0,
+      "prefill_tokens_per_sec_mean": 1084.63,
+      "prefill_tokens_per_sec_stdev": 110.67,
+      "decode_tokens_per_sec_mean": 91.83,
+      "decode_tokens_per_sec_stdev": 3.51,
+      "n_repeats": 5,
+      "ram_gb": 0.826,
+      "decode_retention_vs_baseline_pct": 100.0
+    },
+    {
+      "actual_prompt_tokens": 489,
+      "context_utilization_pct": 23.9,
+      "prefill_tokens_per_sec_mean": 1099.31,
+      "prefill_tokens_per_sec_stdev": 2.72,
+      "decode_tokens_per_sec_mean": 89.78,
+      "decode_tokens_per_sec_stdev": 0.55,
+      "n_repeats": 5,
+      "ram_gb": 0.929,
+      "decode_retention_vs_baseline_pct": 97.8
+    },
+    {
+      "actual_prompt_tokens": 975,
+      "context_utilization_pct": 47.6,
+      "prefill_tokens_per_sec_mean": 1080.28,
+      "prefill_tokens_per_sec_stdev": 26.44,
+      "decode_tokens_per_sec_mean": 80.96,
+      "decode_tokens_per_sec_stdev": 2.73,
+      "n_repeats": 5,
+      "ram_gb": 0.975,
+      "decode_retention_vs_baseline_pct": 88.2
+    },
+    {
+      "actual_prompt_tokens": 1459,
+      "context_utilization_pct": 71.2,
+      "prefill_tokens_per_sec_mean": 1007.94,
+      "prefill_tokens_per_sec_stdev": 19.5,
+      "decode_tokens_per_sec_mean": 72.89,
+      "decode_tokens_per_sec_stdev": 2.89,
+      "n_repeats": 5,
+      "ram_gb": 1.037,
+      "decode_retention_vs_baseline_pct": 79.4
+    },
+    {
+      "actual_prompt_tokens": 1803,
+      "context_utilization_pct": 88.0,
+      "prefill_tokens_per_sec_mean": 944.39,
+      "prefill_tokens_per_sec_stdev": 42.56,
+      "decode_tokens_per_sec_mean": 67.98,
+      "decode_tokens_per_sec_stdev": 2.21,
+      "n_repeats": 5,
+      "ram_gb": 1.079,
+      "decode_retention_vs_baseline_pct": 74.0
+    }
+  ]
+}
