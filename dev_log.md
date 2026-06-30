@@ -222,3 +222,62 @@
 - Confirms: instruction-level parallelism via multiple accumulators
   is a general M4 optimization pattern, not specific to FP32 NEON
 - Status: I8MM kernel fully optimized and verified. Day 19 = update research report.
+
+## Day 19 — June 19, 2026
+- Updated research report Section 4.5 with complete I8MM kernel evolution
+- Documented v1 (broken) -> v2 (packed, fixed) -> v3 (tiled, optimized)
+- Added cross-kernel insight: ILP principle generalizes from FP32 to INT8 SMMLA
+- Report now tells complete, honest engineering investigation story
+- Status: Research report fully complete and rigorous. Day 20 = demo video script.
+
+## Day 20 — June 26, 2026
+- Fixed leaderboard.py: now saves results/leaderboard.json + appends to history.jsonl
+- Fixed accuracy.py: now saves results/accuracy.json + appends to history.jsonl
+- Labeled accuracy.py output clearly as pseudo-perplexity dev metric (not academic)
+- Created results/wikitext2_perplexity.json from real Day 16-17 measurements
+  (was previously only in markdown report, now machine-readable)
+- Both fixes are prerequisites for the Adaptive Inference Planner (Day 22-26)
+  which needs real JSON data to make recommendations from
+- Status: Benchmark plumbing fixed. Next: native_benchmark.sh JSON output, then Planner.
+
+## Day 20 (continued) — June 26, 2026
+- Fixed native_benchmark.sh: removed hardcoded ~/tinyllm-arm-pro/tinyllm-arm-pro paths,
+  now resolves paths relative to script location (works on any machine/clone)
+- Added benchmarks/_parse_native_benchmark.py: parses llama-bench table output into JSON
+- All three benchmark sources now produce structured, consistent JSON:
+  results/leaderboard.json, results/accuracy.json, results/native_benchmark.json
+- All three append to results/history.jsonl — growing dataset for the Planner
+- Status: All benchmark plumbing fixed and verified end-to-end. 
+  Foundation ready for Adaptive Inference Planner (Day 21-26).
+  ## Day 21 — June 26, 2026
+- Designed and built pipeline/planner.py — the Adaptive Inference Planner core logic
+- Pure decision function: recommend(total_ram_gb, benchmark_data) -> plan
+- Logic: 40% RAM headroom rule (model RAM <= 40% of total RAM), pick fastest
+  among options that fit; falls back to smallest option + explicit warning
+  if nothing fits comfortably
+- Output includes ALL options annotated (fits/recommended), not just the winner
+  -> explainable, not a black box, per the design requirement
+- Tested on two cases:
+  - 17.2GB (M4 Mac): correctly recommends Q4_K_M, no warning
+  - 1.0GB (simulated constrained device): correctly falls back to Q2_K
+    with clear warning about tight memory margins
+- Reads only existing JSON (leaderboard.json, accuracy.json) — does not
+  re-measure anything itself, keeping decision logic separate from
+  benchmarking and orchestration
+- Status: Planner core logic complete and verified. Day 22 wires this
+  into run_all.py --auto and adds the live validation step (step 4 of 4).
+
+  ## Day 21 (stress test) — June 26, 2026
+- Built context-scaling stress test on the Planner's recommended model (Q4_K_M)
+- v1 flaw: subtraction-based timing (two model() calls) doubled measurement
+  noise, producing impossible results (decode speed INCREASING 3x with context)
+- Diagnosed root cause: llama.cpp's automatic prompt-prefix KV caching made
+  the second calibration call skip most of its prefill, corrupting the subtraction
+- v2 fix: direct decode-loop timing via model.eval() + model.scores argmax,
+  3 repeats averaged per context level (matching llama-bench's -r rigor)
+- Clean result: decode speed declines monotonically and smoothly,
+  91.69 -> 67.37 tok/s (26.5% slowdown) from 6% to 88% context utilization
+- Tight stdevs (±0.25 to ±3.45) confirm low noise, high confidence
+- Caught and fixed a stale RAM note left over from v1's different caching behavior
+- Status: First real workload stress test complete, methodology sound,
+  result is publishable. This becomes Section 4.6 of the research report.
