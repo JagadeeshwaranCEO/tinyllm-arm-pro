@@ -1,0 +1,39 @@
+name: ARM64 Cloud Benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/arm64_benchmark.yml
+
+jobs:
+  neon-benchmark:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Show hardware info
+        run: |
+          echo "=================================================="
+          echo "Cloud ARM64 Runner — Hardware Info"
+          echo "=================================================="
+          uname -m
+          grep "model name" /proc/cpuinfo | head -1
+          nproc
+          free -h
+
+      - name: Install build tools
+        run: sudo apt-get update -qq && sudo apt-get install -y clang
+
+      - name: Compile NEON and I8MM kernels
+        run: |
+          chmod +x kernels/compile.sh
+          bash kernels/compile.sh
+
+      - name: Run NEON benchmark on cloud ARM64
+        run: ./kernels/neon_benchmark
+
+      - name: Run I8MM benchmark on cloud ARM64
+        run: ./kernels/i8mm_benchmark
