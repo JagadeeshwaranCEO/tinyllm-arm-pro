@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-07-03T12:42:36.332982",
+  "model_family": "Phi-2 (2.7B, PhiForCausalLM)",
+  "note": "Same pipeline as TinyLlama \u2014 proves model-agnostic quantization",
+  "best_model": "Phi2-Q4_K_M",
+  "results": [
+    {
+      "name": "Phi2-Q2_K",
+      "load_time": 0.824,
+      "ram_gb": 1.787,
+      "tokens_per_sec": 43.68
+    },
+    {
+      "name": "Phi2-Q4_K_M",
+      "load_time": 0.953,
+      "ram_gb": 2.385,
+      "tokens_per_sec": 47.59
+    },
+    {
+      "name": "Phi2-Q8_0",
+      "load_time": 1.891,
+      "ram_gb": 3.479,
+      "tokens_per_sec": 32.45
+    }
+  ]
+}
