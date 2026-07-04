@@ -1,0 +1,68 @@
+{
+  "generated_at": "2026-07-03T22:46:52.993780",
+  "models_compared": [
+    "TinyLlama 1.1B (LlamaForCausalLM)",
+    "Phi-2 2.7B (PhiForCausalLM)"
+  ],
+  "key_finding": "Q4_K_M is optimal across both model architectures \u2014 pipeline is model-agnostic",
+  "tinyllama_best": {
+    "name": "Q4_K_M",
+    "load_time": 0.421,
+    "ram_gb": 0.706,
+    "tokens_per_sec": 104.49
+  },
+  "phi2_best": {
+    "name": "Phi2-Q4_K_M",
+    "load_time": 0.953,
+    "ram_gb": 2.385,
+    "tokens_per_sec": 47.59
+  },
+  "speed_ratio_tinyllama_vs_phi2": 2.2,
+  "ram_ratio_phi2_vs_tinyllama": 3.38,
+  "tinyllama_results": [
+    {
+      "name": "Q2_K",
+      "load_time": 0.399,
+      "ram_gb": 0.569,
+      "tokens_per_sec": 82.5
+    },
+    {
+      "name": "Q4_K_M",
+      "load_time": 0.421,
+      "ram_gb": 0.706,
+      "tokens_per_sec": 104.49
+    },
+    {
+      "name": "Q5_K_M",
+      "load_time": 0.49,
+      "ram_gb": 0.802,
+      "tokens_per_sec": 91.84
+    },
+    {
+      "name": "Q8_0",
+      "load_time": 0.714,
+      "ram_gb": 1.125,
+      "tokens_per_sec": 67.67
+    }
+  ],
+  "phi2_results": [
+    {
+      "name": "Phi2-Q2_K",
+      "load_time": 0.824,
+      "ram_gb": 1.787,
+      "tokens_per_sec": 43.68
+    },
+    {
+      "name": "Phi2-Q4_K_M",
+      "load_time": 0.953,
+      "ram_gb": 2.385,
+      "tokens_per_sec": 47.59
+    },
+    {
+      "name": "Phi2-Q8_0",
+      "load_time": 1.891,
+      "ram_gb": 3.479,
+      "tokens_per_sec": 32.45
+    }
+  ]
+}
