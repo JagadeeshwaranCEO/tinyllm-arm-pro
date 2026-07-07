@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-07-06T00:35:22.759624",
+  "device": "GitHub Actions ubuntu-24.04-arm (Cobalt 100)",
+  "device_class": "Cloud ARM64 \u2014 genuine second independent machine",
+  "note": "Validates kernels work correctly on non-Apple ARM64 hardware",
+  "neon_v2_results": [
+    {
+      "matrix": "64x64",
+      "naive_ms": 0.1255,
+      "neon_v1_speedup": 4.11,
+      "neon_v2_speedup": 8.29,
+      "correctness": "PASSED"
+    },
+    {
+      "matrix": "256x256",
+      "naive_ms": 12.11,
+      "neon_v1_speedup": 3.91,
+      "neon_v2_speedup": 9.1,
+      "correctness": "PASSED"
+    },
+    {
+      "matrix": "512x512",
+      "naive_ms": 165.1,
+      "neon_v1_speedup": 3.77,
+      "neon_v2_speedup": 12.52,
+      "correctness": "PASSED"
+    },
+    {
+      "matrix": "2048x2048",
+      "naive_ms": 321.13,
+      "neon_v1_speedup": 3.91,
+      "neon_v2_speedup": 12.23,
+      "correctness": "PASSED"
+    }
+  ],
+  "i8mm_tiled_results": [
+    {
+      "matrix": "64x64",
+      "naive_ms": 0.0276,
+      "packed_speedup": 4.58,
+      "tiled_speedup": 9.24,
+      "correctness": "PASSED"
+    },
+    {
+      "matrix": "256x256",
+      "naive_ms": 1.6035,
+      "packed_speedup": 5.21,
+      "tiled_speedup": 10.14,
+      "correctness": "PASSED"
+    },
+    {
+      "matrix": "512x512",
+      "naive_ms": 12.63,
+      "packed_speedup": 5.22,
+      "tiled_speedup": 7.21,
+      "correctness": "PASSED"
+    },
+    {
+      "matrix": "2048x2048",
+      "naive_ms": 25.988,
+      "packed_speedup": 4.08,
+      "tiled_speedup": 6.6,
+      "correctness": "PASSED"
+    }
+  ],
+  "cross_device_finding": "NEON v2 achieves 8.3-12.5x speedup on Cobalt 100 vs 11.2-12.5x on Apple M4 \u2014 same optimization principles apply across both ARM64 implementations. I8MM tiled achieves higher speedup on Cobalt 100 at larger sizes, consistent with different L2/L3 cache hierarchy between chips. All correctness checks passed on both devices."
+}

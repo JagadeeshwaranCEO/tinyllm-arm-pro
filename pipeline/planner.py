@@ -17,6 +17,7 @@ asked to validate.
 
 import json
 import os
+import psutil
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
@@ -37,30 +38,33 @@ def load_json(filename):
         return json.load(f)
 
 
-def load_benchmark_data():
+def load_benchmark_data(model="tinyllama"):
     """
-    Pulls together the two data sources the Planner needs:
-    - leaderboard.json: speed + RAM per quantization level
-    - accuracy.json: perplexity per quantization level (informational)
-
-    Returns a merged dict keyed by quant name, or raises a clear
-    error if the required data doesn't exist yet (rather than
-    silently returning an empty/wrong recommendation).
+    Load benchmark data for the specified model.
+    Supports: tinyllama, phi2
     """
-    leaderboard = load_json("leaderboard.json")
-    accuracy = load_json("accuracy.json")
+    if model == "tinyllama":
+        leaderboard_file = "leaderboard.json"
+        accuracy_file = "accuracy.json"
+    elif model == "phi2":
+        leaderboard_file = "phi2_benchmark.json"
+        accuracy_file = None  # accuracy not yet run for phi2
+    else:
+        raise ValueError(f"Unknown model: {model}. Supported: tinyllama, phi2")
 
+    leaderboard = load_json(leaderboard_file)
     if leaderboard is None:
         raise FileNotFoundError(
-            "results/leaderboard.json not found. "
-            "Run `python benchmarks/leaderboard.py` first — "
-            "the Planner needs real measured data, not guesses."
+            f"results/{leaderboard_file} not found. "
+            f"Run the appropriate benchmark script first."
         )
 
     accuracy_by_name = {}
-    if accuracy is not None:
-        for r in accuracy["results"]:
-            accuracy_by_name[r["name"]] = r.get("perplexity")
+    if accuracy_file:
+        accuracy = load_json(accuracy_file)
+        if accuracy is not None:
+            for r in accuracy["results"]:
+                accuracy_by_name[r["name"]] = r.get("perplexity")
 
     merged = {}
     for r in leaderboard["results"]:
@@ -69,8 +73,8 @@ def load_benchmark_data():
             "name": name,
             "tokens_per_sec": r["tokens_per_sec"],
             "ram_gb": r["ram_gb"],
-            "load_time": r["load_time"],
-            "perplexity": accuracy_by_name.get(name),  # may be None
+            "load_time": r.get("load_time", 0),
+            "perplexity": accuracy_by_name.get(name),
         }
     return merged
 
@@ -113,7 +117,7 @@ def recommend(total_ram_gb, benchmark_data):
         o["is_recommended"] = (o["name"] == recommendation["name"])
 
     return {
-        "total_ram_gb": total_ram_gb,
+        "total_ram_gb": round(total_ram_gb, 1),
         "safe_limit_gb": safe_limit,
         "headroom_fraction": RAM_HEADROOM_FRACTION,
         "recommendation": recommendation,
@@ -132,7 +136,7 @@ def format_explanation(plan):
     lines.append("=" * 60)
     lines.append("ARM Adaptive Inference Planner")
     lines.append("=" * 60)
-    lines.append(f"System RAM        : {plan['total_ram_gb']} GB")
+    lines.append(f"System RAM        : {plan['total_ram_gb']:.1f} GB")
     lines.append(
         f"Safety threshold   : {plan['safe_limit_gb']} GB "
         f"({int(plan['headroom_fraction']*100)}% of total RAM)"
@@ -172,13 +176,21 @@ def format_explanation(plan):
 
 
 if __name__ == "__main__":
-    # Standalone test: uses a fake 17.2GB RAM (your M4) to verify
-    # logic without needing the full pipeline. Real usage happens
-    # through run_all.py --auto, which passes real detected hardware.
-    print("Running planner.py standalone test (using 17.2GB test RAM)...\n")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model", default="tinyllama",
+                        choices=["tinyllama", "phi2"],
+                        help="Which model to plan for")
+    parser.add_argument("--ram", type=float, default=None,
+                        help="Override RAM (GB) for testing")
+    args = parser.parse_args()
+
+    ram = args.ram or psutil.virtual_memory().total / 1e9
+    print(f"Running planner for model={args.model}, RAM={ram:.1f}GB\n")
+
     try:
-        data = load_benchmark_data()
-        plan = recommend(total_ram_gb=17.2, benchmark_data=data)
+        data = load_benchmark_data(model=args.model)
+        plan = recommend(total_ram_gb=ram, benchmark_data=data)
         print(format_explanation(plan))
     except FileNotFoundError as e:
         print(f"❌ {e}")
