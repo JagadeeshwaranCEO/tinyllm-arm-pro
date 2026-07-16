@@ -245,6 +245,138 @@ def print_summary(master, hw_info):
     print(f"📁 GitHub     : https://github.com/JagadeeshwaranCEO/tinyllm-arm-pro")
     print()
 
+def run_auto_mode(hw_info, model="tinyllama"):
+    """
+    The Adaptive Inference Planner in action.
+    Step 1: Detect hardware (already done — passed in)
+    Step 2: Recommend config with full tradeoff explanation
+    Step 3: Validate recommendation with a live inference run
+    Step 4: Confirm prediction vs reality
+    """
+    import sys
+    sys.path.insert(0, str(ROOT))
+    from pipeline.planner import load_benchmark_data, recommend, format_explanation
+    from llama_cpp import Llama
+
+    print(f"\n{'═'*60}")
+    print(f"  AUTO MODE — Adaptive Inference Planner")
+    print(f"  Model: {model}")
+    print(f"{'═'*60}\n")
+
+    # Step 1 — already detected, just show it
+    print(f"✅ Step 1: Hardware detected")
+    print(f"   {hw_info.get('device_class', 'ARM64 device')} | "
+          f"{hw_info['ram_gb']}GB RAM | {hw_info['cpu_cores']} cores\n")
+
+    # Step 2 — recommend
+    print(f"✅ Step 2: Computing recommendation...")
+    try:
+        data = load_benchmark_data(model=model)
+    except FileNotFoundError as e:
+        print(f"❌ {e}")
+        return
+
+    plan = recommend(total_ram_gb=hw_info['ram_gb'], benchmark_data=data)
+    print(format_explanation(plan))
+
+    rec = plan["recommendation"]
+    quant = rec["name"]
+    expected_speed = rec["tokens_per_sec"]
+    expected_ram = rec["ram_gb"]
+
+    # Step 3 — find the model file and run it live
+    print(f"\n✅ Step 3: Validating recommendation live...")
+
+    # Model path lookup
+    model_paths = {
+        "tinyllama": {
+            "Q4_K_M": str(ROOT / "models/gguf/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf"),
+            "Q8_0":   str(ROOT / "models/gguf/tinyllama-1.1b-chat-v1.0.Q8_0.gguf"),
+            "Q5_K_M": str(ROOT / "models/gguf/tinyllama-1.1b-chat-v1.0.Q5_K_M.gguf"),
+            "Q2_K":   str(ROOT / "models/gguf/tinyllama-1.1b-chat-v1.0.Q2_K.gguf"),
+        },
+        "phi2": {
+            "Phi2-Q4_K_M": str(ROOT / "models/phi2_quantized/phi2-q4km.gguf"),
+            "Phi2-Q8_0":   str(ROOT / "models/phi2_quantized/phi2-q8.gguf"),
+            "Phi2-Q2_K":   str(ROOT / "models/phi2_quantized/phi2-q2k.gguf"),
+        }
+    }
+
+    model_file = model_paths.get(model, {}).get(quant)
+    if not model_file or not os.path.exists(model_file):
+        print(f"⚠️  Model file not found for {quant}.")
+        print(f"   Run quantization pipeline first: bash quantize/build_and_quantize.sh")
+        return
+
+    import psutil as _psutil
+    ram_before = _psutil.Process(os.getpid()).memory_info().rss / 1e9
+
+    load_start = time.time()
+    llm = Llama(model_path=model_file, n_gpu_layers=-1, n_ctx=2048, verbose=False)
+    load_time = time.time() - load_start
+    ram_used = _psutil.Process(os.getpid()).memory_info().rss / 1e9 - ram_before
+
+    # Warmup call — Metal GPU compiles and caches compute kernels on
+    # first inference. Without this, timing includes one-time warmup
+    # cost that doesn't reflect steady-state performance (same reason
+    # phi2_benchmark.py averaged 3 prompts rather than timing 1).
+    print(f"   Warming up Metal GPU kernels...")
+    llm("ARM", max_tokens=1, echo=False)
+
+    prompt = "What is ARM architecture and why does it matter for edge AI inference?"
+    start = time.time()
+    output = llm(prompt, max_tokens=80, echo=False)
+    elapsed = time.time() - start
+    tokens = output["usage"]["completion_tokens"]
+    actual_speed = round(tokens / elapsed, 2)
+    del llm
+
+    # Step 4 — compare prediction vs reality
+    speed_error_pct = abs(actual_speed - expected_speed) / expected_speed * 100
+    ram_error_pct = abs(ram_used - expected_ram) / expected_ram * 100
+    accurate = speed_error_pct < 25 and ram_error_pct < 30
+
+    print(f"\n✅ Step 4: Prediction vs Reality")
+    print(f"{'─'*55}")
+    print(f"{'Metric':<15} {'Predicted':>12} {'Actual':>12} {'Error':>8}")
+    print(f"{'─'*55}")
+    print(f"{'Speed':<15} {expected_speed:>9.2f} t/s {actual_speed:>9.2f} t/s "
+          f"{speed_error_pct:>6.1f}%")
+    print(f"{'RAM':<15} {expected_ram:>9.2f} GB  {ram_used:>9.2f} GB  "
+          f"{ram_error_pct:>6.1f}%")
+    print(f"{'─'*55}")
+
+    if accurate:
+        print(f"\n✅ Prediction CONFIRMED — recommendation is reliable")
+    else:
+        print(f"\n⚠️  Prediction variance high — results may differ from benchmarks")
+        print(f"   (This can happen if other apps are using RAM/GPU)")
+
+    # Save auto-mode result
+    auto_result = {
+        "generated_at": datetime.now().isoformat(),
+        "mode": "auto",
+        "model": model,
+        "hardware": hw_info,
+        "recommended_quant": quant,
+        "predicted_speed": expected_speed,
+        "actual_speed": actual_speed,
+        "speed_error_pct": round(speed_error_pct, 1),
+        "predicted_ram_gb": expected_ram,
+        "actual_ram_gb": round(ram_used, 3),
+        "ram_error_pct": round(ram_error_pct, 1),
+        "prediction_confirmed": accurate,
+        "sample_output": output["choices"][0]["text"].strip()[:200],
+    }
+
+    os.makedirs("results", exist_ok=True)
+    with open("results/auto_mode_result.json", "w") as f:
+        json.dump(auto_result, f, indent=2)
+    print(f"\n✅ Saved: results/auto_mode_result.json")
+    print(f"\n{'═'*60}")
+    print(f"  Auto mode complete.")
+    print(f"  {model} | {quant} | {actual_speed} tok/s | {ram_used:.2f}GB RAM")
+    print(f"{'═'*60}\n")
 # ── Main ──────────────────────────────────────────────────
 def main():
     parser = argparse.ArgumentParser(
@@ -264,6 +396,11 @@ Examples:
                         help="Run benchmarks only, skip quantization")
     parser.add_argument("--detect-hardware", action="store_true",
                         help="Show hardware detection and exit")
+    parser.add_argument("--auto", action="store_true",
+                        help="Auto-detect hardware, recommend config, validate live")
+    parser.add_argument("--model", default="tinyllama",
+                        choices=["tinyllama", "phi2"],
+                        help="Which model to use for --auto mode")
     args = parser.parse_args()
 
     # Detect hardware
@@ -272,6 +409,9 @@ Examples:
 
     if args.detect_hardware:
         print("Hardware detection complete.")
+        return
+    if args.auto:
+        run_auto_mode(hw_info, args.model)
         return
 
     steps_passed = 0

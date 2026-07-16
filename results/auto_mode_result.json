@@ -1,0 +1,26 @@
+{
+  "generated_at": "2026-07-15T23:23:22.977783",
+  "mode": "auto",
+  "model": "phi2",
+  "hardware": {
+    "architecture": "arm64",
+    "processor": "arm",
+    "os": "Darwin",
+    "ram_gb": 17.2,
+    "cpu_cores": 10,
+    "timestamp": "2026-07-15T23:23:19.399997",
+    "chip": "Apple M4",
+    "device_class": "Apple M4 (Flagship ARM)",
+    "recommended_quant": "Q4_K_M",
+    "reason": "M4 Metal GPU aligns perfectly with Q4_K_M SIMD width"
+  },
+  "recommended_quant": "Phi2-Q4_K_M",
+  "predicted_speed": 47.59,
+  "actual_speed": 42.2,
+  "speed_error_pct": 11.3,
+  "predicted_ram_gb": 2.385,
+  "actual_ram_gb": 2.405,
+  "ram_error_pct": 0.8,
+  "prediction_confirmed": true,
+  "sample_output": "Answer: ARM architecture is a type of processor used in mobile and IoT devices. It is important for edge AI inference because it allows for low-power and energy-efficient processing, which is essentia"
+}
