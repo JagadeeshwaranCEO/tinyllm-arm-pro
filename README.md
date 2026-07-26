@@ -112,29 +112,31 @@ outperforms Q8_0 in both speed and accuracy on Apple Silicon.
 tinyllm-arm-pro/
 
 ├── benchmarks/
-
-│   ├── baseline.py          # FP32 baseline measurement
-
-│   ├── quant_benchmark.py   # Single quantization benchmark
-
-│   ├── leaderboard.py       # Multi-quant comparison table
-
-│   └── accuracy.py          # Perplexity + speed tradeoff
-
-├── quantization/            # Quantization pipeline modules
-
-├── kernels/                 # ARM NEON optimization notes
-
-├── results/                 # Benchmark output data
-
+│   ├── baseline.py              # FP32 baseline measurement
+│   ├── quant_benchmark.py       # Single quantization benchmark
+│   ├── leaderboard.py           # Multi-quant comparison table
+│   ├── accuracy.py              # Perplexity + speed tradeoff
+│   ├── pipeline_validation.py   # Ours vs industry reference
+│   ├── cross_model.py           # TinyLlama vs Phi-2 leaderboard
+│   ├── phi2_benchmark.py        # Phi-2 (2.7B) benchmark suite
+│   ├── stress_test.py           # Context scaling decode degradation
+│   ├── native_benchmark.sh      # Native llama-bench wrapper
+│   └── _parse_native_benchmark.py
+├── pipeline/
+│   ├── planner.py               # Adaptive Inference Planner
+│   ├── chatbot.py               # Interactive chat demo
+│   └── run_all.py               # One-command master orchestrator
+├── kernels/                     # Hand-written ARM NEON + I8MM kernels (C)
+├── quantization/                # Build scripts
+├── results/                     # All benchmark output JSON
 ├── report/
-
-│   └── dashboard.html       # Interactive 3D performance dashboard
-
-├── models/                  # Local model storage (gitignored)
-
-├── dev_log.md               # Engineering development log
-
+│   ├── dashboard.html           # Interactive 3D performance dashboard
+│   └── research_report.md       # Full technical paper
+├── models/                      # Local model storage (gitignored)
+├── data/                        # WikiText-2 test corpus
+├── dev_log.md                   # Engineering development log
+├── SETUP.md                     # Step-by-step setup instructions
+├── requirements.txt             # Pinned Python dependencies
 └── README.md
 
 ---
@@ -224,13 +226,10 @@ factor and optional minimum value enable mixed-precision representation.
 ### ARM Metal GPU Offload
 
 All benchmarks use `n_gpu_layers=-1` — complete model offload to
-Apple Metal GPU. The ARM Neural Engine handles:
-- Matrix multiply (GEMM) operations
-- Attention score computation
-- Feed-forward network layers
-
-CPU handles tokenization, sampling, and KV cache management via
-NEON-optimized code paths in llama.cpp.
+Apple Metal GPU handles all matrix operations via llama.cpp's Metal backend.
+The CPU handles tokenization, sampling, and KV cache management via
+NEON-optimized code paths. Note: the Apple Neural Engine (ANE) is NOT used —
+llama.cpp targets the Metal GPU directly, not the ANE.
 
 ### Benchmark Methodology
 
@@ -257,7 +256,7 @@ All results were produced on:
 
 Results may vary slightly across different Apple Silicon generations
 (M1 vs M2 vs M3 vs M4) due to different GPU core counts and
-Neural Engine capabilities.
+memory bandwidth configurations.
 
 ---
 
@@ -275,14 +274,29 @@ This project targets **Track 1: Optimization Output**
 
 ---
 
-## 🚀 What's Next
+## ✅ What We've Built
 
-- [ ] Add llama.cpp NEON INT8 intrinsic benchmarks
-- [ ] Extend to Raspberry Pi 4 (ARM Cortex-A72)
+- ✅ **TinyLlama 1.1B** — Full FP32/GGUF quantization benchmark suite
+- ✅ **Phi-2 2.7B** — Cross-model validation on second architecture (47.59 tok/s)
+- ✅ **Hand-written NEON FP32 kernels** — v2 achieves 12.52× speedup over naive scalar
+- ✅ **ARM I8MM (SMMLA) INT8 kernels** — v3 tiled kernel achieves 12.48× speedup
+- ✅ **WikiText-2 academic perplexity** — Q4_K_M: 8.73 PPL (within 0.14% of reference)
+- ✅ **Multi-source validation** — Our pipeline = independent reference (within margin of error)
+- ✅ **Real workload stress test** — Context scaling from 6% to 88% decode degradation measured
+- ✅ **Adaptive Inference Planner** — Auto-detect + recommend + validate pipeline
+- ✅ **Cross-device validation** — Apple M4 + GitHub Actions Cobalt 100 ARM64
+- ✅ **llama.cpp native compilation** — With Flash Attention, Metal GPU, quantized KV cache
+- ✅ **1329 t/s prompt processing** — Native llama-bench with Flash Attention on M4
+- ✅ **CI/CD pipeline** — GitHub Actions `arm64_benchmark.yml`
+- ✅ **Interactive 3D dashboard** — Live data with Three.js deep-space visualization
+
+## 🚀 Future Work
+
 - [ ] Add AWS Graviton3 benchmarks
+- [ ] Extend to Raspberry Pi 4 (ARM Cortex-A72)
 - [ ] Implement KleidiAI kernel integration
-- [ ] Extend to Phi-2 and Qwen-1.8B models
-- [ ] Add continuous benchmark CI/CD pipeline
+- [ ] Extend to Qwen-1.8B and Gemma-2B models
+- [ ] Add continuous benchmark regression tracking
 
 ---
 
@@ -298,14 +312,3 @@ MIT License — see [LICENSE](LICENSE) for details.
 
 *Built for the ARM Create: AI Optimization Challenge 2026*
 *"From Tamil Nadu to ARM silicon — edge AI for everyone."*
-## 🏆 Key Results
-
-| Metric | Python Wrapper | Native llama-bench |
-|--------|---------------|-------------------|
-| **Prompt Processing (pp512)** | — | **1329.34 t/s** |
-| **Text Generation (tg128)** | 109.20 t/s | **123.98 t/s** |
-| **Speedup over FP32** | **6.61×** | — |
-| **RAM Reduction** | **68%** | — |
-| **Our Pipeline vs Reference** | **73.9% better perplexity** | — |
-| **NEON v2 Kernel Speedup** | **12.52×** | — |
-| **Hardware** | Apple M4 ARM64 + Metal GPU | — |

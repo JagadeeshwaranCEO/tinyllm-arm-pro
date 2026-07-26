@@ -290,6 +290,42 @@ canvas { display: block; }
     </div>
   </div>
 
+  <div class="section">
+    <div class="glass-panel">
+      <div class="panel-label">Native llama-bench</div>
+      <div class="panel-title">Native C++ Inference Performance</div>
+      <div class="panel-note">With Flash Attention · Metal GPU · Quantized KV Cache</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px" id="nativeGrid"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="glass-panel" style="max-width:1100px">
+      <div class="panel-label">Data Table</div>
+      <div class="panel-title">Full Benchmark Dataset</div>
+      <div class="panel-note">All quantization levels — speed, RAM, load time, perplexity</div>
+      <div style="overflow-x:auto">
+        <table id="resultsTable" style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead>
+            <tr style="border-bottom:1px solid rgba(100,150,255,0.2)">
+              <th style="text-align:left;padding:10px 8px;color:#64c8ff;font-weight:700">Model</th>
+              <th style="text-align:right;padding:10px 8px;color:#64c8ff;font-weight:700">Speed (t/s)</th>
+              <th style="text-align:right;padding:10px 8px;color:#64c8ff;font-weight:700">Speedup</th>
+              <th style="text-align:right;padding:10px 8px;color:#64c8ff;font-weight:700">RAM (GB)</th>
+              <th style="text-align:right;padding:10px 8px;color:#64c8ff;font-weight:700">Load (s)</th>
+              <th style="text-align:right;padding:10px 8px;color:#64c8ff;font-weight:700">PPL</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody">
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-top:16px;font-size:11px;color:rgba(200,220,255,0.4);text-align:center">
+        FP32 baseline: 16.52 t/s | Wikitext-2 academic PPL shown where available
+      </div>
+    </div>
+  </div>
+
   <div class="footer-section">
     <p>TinyLLM-ARM-Pro · ARM Create: AI Optimization Challenge 2026</p>
     <p><a href="https://github.com/JagadeeshwaranCEO/tinyllm-arm-pro">github.com/JagadeeshwaranCEO/tinyllm-arm-pro</a></p>
@@ -353,7 +389,19 @@ const FALLBACK_DATA = {
     best_tokens_per_sec: 109.2,
     best_speedup: 6.61,
     ram_reduction_percent: 68,
-    our_pipeline_perplexity_improvement: 73.9,
+    wikitext2_ppl_ours: 8.73,
+    wikitext2_ppl_reference: 8.74,
+    quality_note: "Equivalent to reference (within 0.14%)",
+  },
+  native_benchmarks: {
+    pp512: { Q4_K_M: 1329.34, Q8_0: 1384.69, Q2_K: 1300.75 },
+    tg128: { Q4_K_M: 123.98, Q8_0: 77.45, Q2_K: 130.41 }
+  },
+  wikitext2: {
+    Q8_0: 8.4459,
+    Q4_K_M: 8.7281,
+    Q2_K: 12.3611,
+    reference_p4: 8.7400
   }
 };
 
@@ -361,6 +409,8 @@ function renderAll(data) {
   const hw = data.hardware || {};
   const rows = (data.benchmarks && data.benchmarks.pipeline_validation) || [];
   const kf = data.key_findings || {};
+  const native = data.native_benchmarks || {};
+  const wt2 = data.wikitext2 || {};
 
   document.getElementById('hwLine').textContent =
     `Running on ${hw.device_class || 'ARM64 device'} · ${hw.ram_gb || '?'}GB RAM · ${hw.cpu_cores || '?'} cores`;
@@ -392,32 +442,59 @@ function renderAll(data) {
 
   // ── Compare cards (ours vs ref, grouped by quant level) ──
   const quantLevels = ["Q4_K_M", "Q8_0", "Q2_K"];
+  const pplOurs = { Q4_K_M: wt2.Q4_K_M || null, Q8_0: wt2.Q8_0 || null, Q2_K: wt2.Q2_K || null };
+  const pplRef = { Q4_K_M: wt2.reference_p4 || null };
+
   const compareHtml = quantLevels.map(q => {
     const ours = rows.find(r => r.name.includes(q) && r.source === "Our Pipeline");
     const ref = rows.find(r => r.name.includes(q) && r.source.includes("Reference"));
     if (!ours || !ref) return '';
     const speedDiff = ((ours.tokens_per_sec - ref.tokens_per_sec) / ref.tokens_per_sec) * 100;
-    const pplDiff = ((ours.perplexity - ref.perplexity) / ref.perplexity) * 100;
     const color = colorFor(q);
+    const acPpl = pplOurs[q] !== null ? ` (academic: ${pplOurs[q].toFixed(2)})` : '';
     return `
       <div class="compare-card" style="border-color:${color}33">
         <div class="compare-title" style="color:${color}">${q}</div>
         <div class="compare-row"><span>Speed (ours)</span><b>${ours.tokens_per_sec.toFixed(1)} tok/s</b></div>
         <div class="compare-row"><span>Speed (ref)</span><b>${ref.tokens_per_sec.toFixed(1)} tok/s</b></div>
-        <div class="compare-row"><span>Perplexity (ours)</span><b class="win-tag">${ours.perplexity.toFixed(1)}</b></div>
-        <div class="compare-row"><span>Perplexity (ref)</span><b>${ref.perplexity.toFixed(1)}</b></div>
-        <div class="compare-row"><span>Quality gain</span><b class="win-tag">${pplDiff.toFixed(1)}%</b></div>
+        <div class="compare-row"><span>Speed gain</span><b class="win-tag">${speedDiff > 0 ? '+' : ''}${speedDiff.toFixed(1)}%</b></div>
+        <div class="compare-row"><span>Quality vs ref</span><b style="color:#64c8ff">equivalent${acPpl}</b></div>
       </div>`;
   }).join('');
   document.getElementById('compareGrid').innerHTML = compareHtml;
 
   // ── Metric cards ──
+  const nativeNote = (native.pp512 && native.pp512.Q4_K_M) ?
+    `Native pp512: ${native.pp512.Q4_K_M.toFixed(0)} t/s` : '';
   document.getElementById('metricGrid').innerHTML = `
-    <div class="metric-card"><div class="metric-num" style="color:#64c8ff">${(kf.best_tokens_per_sec||0).toFixed(1)}</div><div class="metric-lbl">Peak tok/s</div></div>
-    <div class="metric-card"><div class="metric-num" style="color:#34d399">${(kf.best_speedup||0).toFixed(2)}×</div><div class="metric-lbl">Max Speedup</div></div>
+    <div class="metric-card"><div class="metric-num" style="color:#64c8ff">${(kf.best_tokens_per_sec||0).toFixed(1)}</div><div class="metric-lbl">Peak tok/s (Python)</div></div>
+    <div class="metric-card"><div class="metric-num" style="color:#34d399">${(kf.best_speedup||0).toFixed(2)}×</div><div class="metric-lbl">Speedup vs FP32</div></div>
     <div class="metric-card"><div class="metric-num" style="color:#a78bfa">${kf.ram_reduction_percent||0}%</div><div class="metric-lbl">RAM Saved</div></div>
-    <div class="metric-card"><div class="metric-num" style="color:#f59e0b">${(kf.our_pipeline_perplexity_improvement||0).toFixed(1)}%</div><div class="metric-lbl">Quality Gain</div></div>
+    <div class="metric-card"><div class="metric-num" style="color:#f59e0b;font-size:16px">${kf.wikitext2_ppl_ours ? kf.wikitext2_ppl_ours.toFixed(2) + ' PPL' : 'equivalent'}</div><div class="metric-lbl">WikiText-2 (ref: ${kf.wikitext2_ppl_reference ? kf.wikitext2_ppl_reference.toFixed(2) : '?'})</div></div>
   `;
+
+  // ── Native benchmark cards ──
+  const nativeGrid = document.getElementById('nativeGrid');
+  if (nativeGrid && native.pp512) {
+    const models = ['Q4_K_M', 'Q8_0', 'Q2_K'];
+    nativeGrid.innerHTML = models.map(m => {
+      const pp = native.pp512[m] || '—';
+      const tg = native.tg128[m] || '—';
+      const color = COLORS[m] || '#64748b';
+      return `
+        <div style="background:rgba(100,150,255,0.04);border:1px solid ${color}22;border-radius:16px;padding:20px;text-align:center">
+          <div style="font-size:13px;font-weight:700;color:${color};margin-bottom:12px">${m}</div>
+          <div style="font-size:22px;font-weight:900;color:#e2e8f0">${pp.toFixed ? pp.toFixed(0) : pp}</div>
+          <div style="font-size:9px;color:rgba(200,220,255,0.35);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px">Prompt t/s</div>
+          <div style="font-size:18px;font-weight:700;color:rgba(200,220,255,0.7)">${tg.toFixed ? tg.toFixed(1) : tg}</div>
+          <div style="font-size:9px;color:rgba(200,220,255,0.35);letter-spacing:0.08em;text-transform:uppercase">Generation t/s</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Results table ──
+  const fp32 = kf.fp32_baseline_tokens_per_sec || 16.52;
+  renderResultsTable(rows, fp32, wt2);
 
   // ── Animate the big counter ──
   animateCounter(document.getElementById('counter'), kf.best_speedup || 0, '×', 1800);
@@ -432,6 +509,48 @@ function animateCounter(el, target, suffix, duration) {
     if (p < 1) requestAnimationFrame(update);
   };
   requestAnimationFrame(update);
+}
+
+function renderResultsTable(rows, fp32Speed, wt2) {
+  const tbody = document.getElementById('tableBody');
+  if (!tbody) return;
+
+  const fp32Row = {
+    name: 'FP32 (baseline)',
+    source: 'Our Pipeline',
+    tokens_per_sec: fp32Speed,
+    speedup: 1.00,
+    ram_gb: 2.20,
+    load_time: 3.86,
+    perplexity: null,
+  };
+
+  const tableData = [fp32Row, ...rows.map(r => ({
+    ...r,
+    speedup: r.tokens_per_sec / fp32Speed,
+    wt2: wt2 ? wt2[r.name.replace(' (OURS)', '').replace(' (REF)', '').replace('Phi2-', '')] : null,
+  }))];
+
+  tbody.innerHTML = tableData.map(r => {
+    const color = r.name.includes('FP32') ? '#64748b' : colorFor(r.name);
+    const isOurs = r.source === 'Our Pipeline' || r.name === 'FP32 (baseline)';
+    const pplDisplay = r.wt2 ? r.wt2.toFixed(4) : (r.perplexity ? r.perplexity.toFixed(1) : '—');
+    const pplNote = r.wt2 ? 'academic' : (r.perplexity ? 'dev' : '');
+    return `
+      <tr style="border-bottom:1px solid rgba(100,150,255,0.06)">
+        <td style="padding:10px 8px;color:${color};font-weight:${isOurs ? '700' : '400'}">
+          ${r.name}${r.source && r.name !== 'FP32 (baseline)' ? `<span style="display:block;font-size:9px;opacity:0.5">${r.source}</span>` : ''}
+        </td>
+        <td style="text-align:right;padding:10px 8px">${r.tokens_per_sec.toFixed(1)}</td>
+        <td style="text-align:right;padding:10px 8px;color:#34d399">${r.speedup.toFixed(2)}×</td>
+        <td style="text-align:right;padding:10px 8px">${r.ram_gb.toFixed(2)}</td>
+        <td style="text-align:right;padding:10px 8px">${'load_time' in r ? r.load_time.toFixed(2) : '—'}</td>
+        <td style="text-align:right;padding:10px 8px;opacity:0.7">
+          ${pplDisplay}
+          ${pplNote ? `<span style="display:block;font-size:9px;opacity:0.4">${pplNote}</span>` : ''}
+        </td>
+      </tr>`;
+  }).join('');
 }
 
 window.addEventListener('load', () => setTimeout(loadData, 400));

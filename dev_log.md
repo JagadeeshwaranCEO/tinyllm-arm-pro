@@ -281,3 +281,35 @@
 - Caught and fixed a stale RAM note left over from v1's different caching behavior
 - Status: First real workload stress test complete, methodology sound,
   result is publishable. This becomes Section 4.6 of the research report.
+  ## Day 23-24 — July 4, 2026
+- GitHub Actions ARM64 workflow: SUCCESS on Cobalt 100 cloud runner
+  NEON v2: 8.29-12.52x speedup (vs M4: 11.19-12.52x) — same optimization principles confirmed
+  I8MM tiled: 6.60-10.14x speedup (Cobalt favors larger sizes — different cache hierarchy)
+  All correctness checks PASSED on second independent ARM64 device ✅
+- Saved cloud results: results/cloud_arm64_benchmark.json
+- Phi-2 (2.7B) benchmarked through our pipeline:
+  Q2_K: 43.68 tok/s | 1.79GB
+  Q4_K_M: 47.59 tok/s | 2.38GB ← winner
+  Q8_0: 32.45 tok/s | 3.48GB
+- Cross-model leaderboard built (benchmarks/cross_model.py):
+  Q4_K_M optimal on BOTH LlamaForCausalLM AND PhiForCausalLM → pipeline is model-agnostic
+  TinyLlama 2.2x faster than Phi-2, Phi-2 uses 3.4x more RAM for stronger reasoning
+- Planner updated: now accepts --model tinyllama or --model phi2 argument
+  Both models recommend Q4_K_M on 17.2GB M4 — consistent with cross-model finding
+- Status: Day 25 wires run_all.py --auto end to end
+## Day 25 — July 5, 2026
+- Wired run_all.py --auto end to end (4-step cycle):
+  Step 1: Hardware detection (chip, RAM, cores)
+  Step 2: Recommendation with full tradeoff table
+  Step 3: Live inference validation with GPU warmup
+  Step 4: Prediction vs reality comparison
+
+- TinyLlama --auto: Speed 3.5% error, RAM 6.3% error ✅
+- Phi-2 --auto: Speed 11.3% error, RAM 0.8% error ✅
+  (Phi-2 initial run showed 51.8% error — diagnosed as Metal GPU
+   warmup cost on first inference after model load, fixed with
+   one warmup call before timing. Same reason benchmark script
+   averaged 3 prompts rather than 1.)
+
+- Status: Full pipeline operational. Day 26 = research report
+  sections 4.6-4.9 + README final update.

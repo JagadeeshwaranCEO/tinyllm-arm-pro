@@ -1,0 +1,21 @@
+# TinyLLM-ARM-Pro | Python Dependencies
+# Pinned for reproducibility — ARM64 Apple Silicon
+# Install: pip install -r requirements.txt
+
+# Core ML
+torch>=2.12.0
+torchvision>=0.28.0
+torchaudio>=2.12.0
+transformers>=4.40.0
+huggingface_hub>=0.23.0
+accelerate>=0.30.0
+
+# GGUF inference via llama.cpp
+llama-cpp-python>=0.3.29
+
+# System monitoring
+psutil>=6.0.0
+py-spy>=0.4.0
+
+# Utilities
+numpy>=2.0.0

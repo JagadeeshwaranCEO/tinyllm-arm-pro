@@ -154,13 +154,6 @@ def run_step(name, script, args=""):
     else:
         print(f"❌ {name} failed")
         return False
-    elapsed = time.time() - start
-    if result == 0:
-        print(f"✅ {name} complete ({elapsed:.1f}s)")
-        return True
-    else:
-        print(f"❌ {name} failed")
-        return False
 
 # ── Results Aggregator ────────────────────────────────────
 def aggregate_results():
@@ -192,7 +185,9 @@ def aggregate_results():
         "best_speedup": 6.61,
         "best_quantization": "Q4_K_M",
         "ram_reduction_percent": 68,
-        "our_pipeline_perplexity_improvement": 73.9,
+        "wikitext2_ppl_ours": 8.73,
+        "wikitext2_ppl_reference": 8.74,
+        "quality_note": "Equivalent to independent reference (within 0.14%)",
         "mission": "LLM inference for the other 6 billion"
     }
 
@@ -219,15 +214,14 @@ def print_summary(master, hw_info):
   RAM Reduction      : 68% (2.20GB → 0.71GB)
   Load Time          : 0.42s (vs 3.86s FP32)
 
-🔬 PIPELINE VALIDATION
+🔬 PIPELINE VALIDATION (WikiText-2 Academic)
 {'─'*55}
-  Our Q4_K_M vs Reference:
-  Speed      : 107.55 vs 109.50 tok/s  (−1.8% — equal)
-  Perplexity : 29.16  vs 111.75        (−73.9% — WE WIN)
+  Q4_K_M (ours):     8.73 PPL  (stderr 0.05)
+  Q4_K_M (ref):      8.74 PPL  (stderr 0.05)
+  Difference:        0.14%     — statistically equivalent
 
-  Our Q2_K vs Reference:
-  Speed      : 104.89 vs 81.72 tok/s   (+28.4% — WE WIN)
-  Perplexity : 50.72  vs 127.46        (−60.2% — WE WIN)
+  Multi-source validation confirms: our from-scratch pipeline
+  correctly reproduces expected K-quant quality on ARM64.
 
 🌍 MISSION
 {'─'*55}
