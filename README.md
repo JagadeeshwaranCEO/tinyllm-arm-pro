@@ -16,9 +16,9 @@
 | Metric | Value |
 |--------|-------|
 | **Peak Inference Speed** | 109.20 tokens/sec |
-| **Speedup over FP32** | **6.61×** |
-| **RAM Reduction** | 68% (2.20GB → 0.71GB) |
-| **Model Load Time** | 0.42s (vs 3.86s FP32) |
+| **Speedup over FP32** | **5.75×** |
+| **RAM Reduction** | 83% (4.10GB → 0.71GB) |
+| **Model Load Time** | 0.42s (vs 3.0s FP32) |
 | **Best Quantization** | Q4_K_M (fastest + most accurate) |
 | **Hardware** | Apple Silicon ARM64 + Metal GPU |
 
@@ -30,21 +30,21 @@
 
 | Model | Speed | Speedup | RAM | Load Time |
 |-------|-------|---------|-----|-----------|
-| FP32 (baseline) | 16.52 tok/s | 1.00× | 2.20 GB | 3.86s |
-| Q8_0 | 75.88 tok/s | 4.59× | 1.14 GB | 0.67s |
-| Q5_K_M | 80.71 tok/s | 4.89× | 0.82 GB | 0.42s |
-| Q2_K | 81.03 tok/s | 4.90× | 0.57 GB | 0.35s |
-| **Q4_K_M** 👑 | **102.27 tok/s** | **6.19×** | **0.71 GB** | **0.42s** |
+| FP32 (baseline) | 19.0 tok/s | 1.00× | 4.10 GB | 3.0s |
+| Q8_0 | 75.88 tok/s | 3.99× | 1.14 GB | 0.67s |
+| Q5_K_M | 80.71 tok/s | 4.25× | 0.82 GB | 0.42s |
+| Q2_K | 81.03 tok/s | 4.26× | 0.57 GB | 0.35s |
+| **Q4_K_M** 👑 | **102.27 tok/s** | **5.38×** | **0.71 GB** | **0.42s** |
 
 ### Accuracy vs Speed Tradeoff (Perplexity Analysis)
 
 | Model | Speed | Speedup | Perplexity | Quality vs Q8_0 |
 |-------|-------|---------|------------|-----------------|
-| FP32 (est.) | 16.52 tok/s | 1.00× | ~121.3 | baseline |
-| Q2_K | 78.28 tok/s | 4.74× | 127.46 | −10.3% |
-| Q5_K_M | 71.53 tok/s | 4.33× | 115.66 | −0.1% |
-| Q8_0 | 64.90 tok/s | 3.93× | 115.57 | reference |
-| **Q4_K_M** 👑 | **109.20 tok/s** | **6.61×** | **111.75** | **+3.3% better** |
+| FP32 (est.) | 19.0 tok/s | 1.00× | ~121.3 | baseline |
+| Q2_K | 78.28 tok/s | 4.12× | 127.46 | −10.3% |
+| Q5_K_M | 71.53 tok/s | 3.76× | 115.66 | −0.1% |
+| Q8_0 | 64.90 tok/s | 3.42× | 115.57 | reference |
+| **Q4_K_M** 👑 | **109.20 tok/s** | **5.75×** | **111.75** | **+3.3% better** |
 
 > **Key Finding:** Q4_K_M achieves the highest speed AND the best accuracy
 > across all quantization levels tested. INT4 K-quant grouping aligns

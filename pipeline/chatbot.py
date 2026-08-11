@@ -70,19 +70,24 @@ def chat_loop(llm, quant_info):
             continue
 
         messages.append({"role": "user", "content": user})
-        prompt = llm.tokenizer.apply_chat_template(messages, tokenize=False)
-
         print(" Bot: ", end="", flush=True)
-        output = llm(
-            prompt,
+
+        output = llm.create_chat_completion(
+            messages=messages,
             max_tokens=256,
             temperature=0.7,
             top_p=0.9,
             stop=["</s>", "User:", "user:"],
-            echo=False,
+            stream=True,
         )
-        response = output["choices"][0]["text"].strip()
-        print(response)
+        response_parts = []
+        for chunk in output:
+            delta = chunk["choices"][0]["delta"].get("content", "")
+            if delta:
+                print(delta, end="", flush=True)
+                response_parts.append(delta)
+        response = "".join(response_parts).strip()
+        print()
         messages.append({"role": "assistant", "content": response})
 
 

@@ -180,11 +180,11 @@ def aggregate_results():
 
     # Add key findings
     master["key_findings"] = {
-        "fp32_baseline_tokens_per_sec": 16.52,
+        "fp32_baseline_tokens_per_sec": 19.0,
         "best_tokens_per_sec": 109.20,
-        "best_speedup": 6.61,
+        "best_speedup": 5.75,
         "best_quantization": "Q4_K_M",
-        "ram_reduction_percent": 68,
+        "ram_reduction_percent": 83,
         "wikitext2_ppl_ours": 8.73,
         "wikitext2_ppl_reference": 8.74,
         "quality_note": "Equivalent to independent reference (within 0.14%)",
@@ -208,11 +208,11 @@ def print_summary(master, hw_info):
     print(f"""
 🏆 RESULTS ON {hw_info.get('device_class', 'ARM Device').upper()}
 {'─'*55}
-  FP32 Baseline      : 16.52 tokens/sec
+  FP32 Baseline      : 19.0 tokens/sec
   Best Optimized     : 109.20 tokens/sec (Q4_K_M)
-  Peak Speedup       : 6.61× faster than FP32
-  RAM Reduction      : 68% (2.20GB → 0.71GB)
-  Load Time          : 0.42s (vs 3.86s FP32)
+  Peak Speedup       : 5.75× faster than FP32
+  RAM Reduction      : 83% (4.10GB → 0.71GB)
+  Load Time          : 0.42s (vs 3.0s FP32)
 
 🔬 PIPELINE VALIDATION (WikiText-2 Academic)
 {'─'*55}

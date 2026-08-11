@@ -56,7 +56,7 @@ def run_leaderboard():
         ("./models/gguf/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",   "Q8_0   "),
     ]
 
-    fp32_baseline = 16.52
+    fp32_baseline = 19.0
     results = []
     for path, name in models:
         result = benchmark_model(path, name)
@@ -68,7 +68,7 @@ def run_leaderboard():
     print("="*60)
     print(f"{'Model':<12} {'Speed':>12} {'Speedup':>10} {'RAM':>8} {'Load':>8}")
     print("-"*60)
-    print(f"{'FP32':<12} {'16.52 tok/s':>12} {'1.00x':>10} {'2.20GB':>8} {'3.86s':>8}")
+    print(f"{'FP32':<12} {'19.0 tok/s':>12} {'1.00x':>10} {'4.10GB':>8} {'3.0s':>8}")
     for r in results:
         speedup = r["tokens_per_sec"] / fp32_baseline
         print(f"{r['name']:<12} {r['tokens_per_sec']:>9.2f} tok/s {speedup:>9.2f}x {r['ram_gb']:>7.2f}GB {r['load_time']:>7.2f}s")

@@ -321,7 +321,7 @@ canvas { display: block; }
         </table>
       </div>
       <div style="margin-top:16px;font-size:11px;color:rgba(200,220,255,0.4);text-align:center">
-        FP32 baseline: 16.52 t/s | Wikitext-2 academic PPL shown where available
+        FP32 baseline: 19.0 t/s | Wikitext-2 academic PPL shown where available
       </div>
     </div>
   </div>
@@ -385,10 +385,10 @@ const FALLBACK_DATA = {
     ]
   },
   key_findings: {
-    fp32_baseline_tokens_per_sec: 16.52,
+    fp32_baseline_tokens_per_sec: 19.0,
     best_tokens_per_sec: 109.2,
-    best_speedup: 6.61,
-    ram_reduction_percent: 68,
+    best_speedup: 5.75,
+    ram_reduction_percent: 83,
     wikitext2_ppl_ours: 8.73,
     wikitext2_ppl_reference: 8.74,
     quality_note: "Equivalent to reference (within 0.14%)",
@@ -493,7 +493,7 @@ function renderAll(data) {
   }
 
   // ── Results table ──
-  const fp32 = kf.fp32_baseline_tokens_per_sec || 16.52;
+  const fp32 = kf.fp32_baseline_tokens_per_sec || 19.0;
   renderResultsTable(rows, fp32, wt2);
 
   // ── Animate the big counter ──
@@ -520,8 +520,8 @@ function renderResultsTable(rows, fp32Speed, wt2) {
     source: 'Our Pipeline',
     tokens_per_sec: fp32Speed,
     speedup: 1.00,
-    ram_gb: 2.20,
-    load_time: 3.86,
+    ram_gb: 4.10,
+    load_time: 3.0,
     perplexity: null,
   };
 

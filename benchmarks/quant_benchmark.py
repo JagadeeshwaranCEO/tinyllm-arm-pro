@@ -71,8 +71,8 @@ def run_quant_benchmark():
 
     avg_speed = total_tokens / total_time
     print(f"\n📊 Average Speed     : {avg_speed:.2f} tokens/sec")
-    print(f"📊 FP32 Baseline     : 16.52 tokens/sec")
-    print(f"📊 Speedup           : {avg_speed / 16.52:.2f}x")
+    print(f"📊 FP32 Baseline     : 19.0 tokens/sec")
+    print(f"📊 Speedup           : {avg_speed / 19.0:.2f}x")
     print("\n✅ Quantization benchmark complete.\n")
 
 if __name__ == "__main__":

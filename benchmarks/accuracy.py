@@ -109,7 +109,7 @@ def run_accuracy_report():
         ("./models/gguf/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",   "Q8_0  "),
     ]
 
-    fp32_baseline_speed = 16.52
+    fp32_baseline_speed = 19.0
     results = []
 
     for path, name in models:
@@ -123,7 +123,7 @@ def run_accuracy_report():
     print("="*65)
     print(f"{'Model':<10} {'Speed':>12} {'Speedup':>9} {'Perplexity':>12} {'Quality':>10}")
     print("-"*65)
-    print(f"{'FP32':<10} {'16.52 tok/s':>12} {'1.00x':>9} {'~'+str(round(ref_perplexity*1.05,1)):>12} {'Baseline':>10}")
+    print(f"{'FP32':<10} {'19.0 tok/s':>12} {'1.00x':>9} {'~'+str(round(ref_perplexity*1.05,1)):>12} {'Baseline':>10}")
 
     for r in results:
         speedup = r["speed"] / fp32_baseline_speed

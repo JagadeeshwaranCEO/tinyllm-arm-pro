@@ -10,7 +10,7 @@ markdown# ARM-Native LLM Inference Optimization: K-Quant Quantization, NEON SIMD
 
 ## Abstract
 
-This paper presents TinyLLM-ARM-Pro, a production-grade LLM inference optimization toolkit built natively for ARM architecture. We demonstrate that a student-built pipeline — compiled from source on Apple Silicon — produces quantized models that achieve statistically equivalent quality (within 0.14%) to two independent industry reference sources on the standard WikiText-2 benchmark, while achieving **6.61× inference speedup** over FP32 baseline through K-quant quantization. We further implement hand-written ARM NEON SIMD kernels achieving **12.52× FP32 speedup** and ARMv8.6-A I8MM (SMMLA) kernels achieving **12.48× INT8 speedup** with pre-packed weight layout. Native llama-bench measurements with Flash Attention reach **1329 tokens/sec prompt processing** on Apple M4. We validate across two model architectures (TinyLlama 1.1B and Phi-2 2.7B), demonstrate graceful context scaling decode degradation (26% at 88% context), implement an Adaptive Inference Planner with ≤11.3% prediction error, and confirm cross-device portability on Cobalt 100 cloud ARM64. All results are verified correct, reproducible from source code, and available under MIT license.
+This paper presents TinyLLM-ARM-Pro, a production-grade LLM inference optimization toolkit built natively for ARM architecture. We demonstrate that a student-built pipeline — compiled from source on Apple Silicon — produces quantized models that achieve statistically equivalent quality (within 0.14%) to two independent industry reference sources on the standard WikiText-2 benchmark, while achieving **5.75× inference speedup** over FP32 baseline through K-quant quantization. We further implement hand-written ARM NEON SIMD kernels achieving **12.52× FP32 speedup** and ARMv8.6-A I8MM (SMMLA) kernels achieving **12.48× INT8 speedup** with pre-packed weight layout. Native llama-bench measurements with Flash Attention reach **1329 tokens/sec prompt processing** on Apple M4. We validate across two model architectures (TinyLlama 1.1B and Phi-2 2.7B), demonstrate graceful context scaling decode degradation (26% at 88% context), implement an Adaptive Inference Planner with ≤11.3% prediction error, and confirm cross-device portability on Cobalt 100 cloud ARM64. All results are verified correct, reproducible from source code, and available under MIT license.
 
 ---
 
@@ -148,11 +148,11 @@ Metrics: pp512 (prompt processing, 512 tokens), tg128 (text generation, 128 toke
 
 | Model | Speed | Speedup | RAM | Load Time |
 |-------|-------|---------|-----|-----------|
-| FP32 (baseline) | 16.52 tok/s | 1.00× | 2.20 GB | 3.86s |
-| Q8_0 | 75.88 tok/s | 4.59× | 1.14 GB | 0.67s |
-| Q5_K_M | 80.71 tok/s | 4.89× | 0.82 GB | 0.42s |
-| Q2_K | 81.03 tok/s | 4.90× | 0.57 GB | 0.35s |
-| **Q4_K_M** | **102.27 tok/s** | **6.19×** | **0.71 GB** | **0.42s** |
+| FP32 (baseline) | 19.0 tok/s | 1.00× | 4.10 GB | 3.0s |
+| Q8_0 | 75.88 tok/s | 3.99× | 1.14 GB | 0.67s |
+| Q5_K_M | 80.71 tok/s | 4.25× | 0.82 GB | 0.42s |
+| Q2_K | 81.03 tok/s | 4.26× | 0.57 GB | 0.35s |
+| **Q4_K_M** | **102.27 tok/s** | **5.38×** | **0.71 GB** | **0.42s** |
 
 **Key finding:** Q4_K_M achieves the highest speed despite not being the smallest model. We attribute this to the 4-bit K-quant grouping aligning with the Metal GPU's SIMD vector width, enabling higher throughput than even INT8 uniform quantization.
 
@@ -160,7 +160,7 @@ Metrics: pp512 (prompt processing, 512 tokens), tg128 (text generation, 128 toke
 
 | Model | Speed | Perplexity | vs Q8_0 Reference |
 |-------|-------|------------|-------------------|
-| FP32 (est.) | 16.52 tok/s | ~121.3 | baseline |
+| FP32 (est.) | 19.0 tok/s | ~121.3 | baseline |
 | Q2_K | 78.28 tok/s | 127.46 | −10.3% |
 | Q5_K_M | 71.53 tok/s | 115.66 | −0.1% |
 | Q8_0 | 64.90 tok/s | 115.57 | reference |
@@ -444,7 +444,7 @@ TinyLLM-ARM-Pro demonstrates that production-grade LLM inference on ARM hardware
 
 Our key contributions:
 - **Equivalent quality** to independent community references (WikiText-2 PPL 8.73 ± 0.05 vs 8.74 ± 0.05, within 0.14%)
-- **6.61× quantization speedup** over FP32 with Q4_K_M
+- **5.75× quantization speedup** over FP32 with Q4_K_M
 - **12.52× NEON FP32 speedup** with multi-accumulator blocking
 - **12.48× I8MM INT8 speedup** with tiled SMMLA pre-packed weight layout
 - **1329 t/s** prompt processing with Flash Attention on Apple M4

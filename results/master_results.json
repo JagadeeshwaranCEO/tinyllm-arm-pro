@@ -77,11 +77,11 @@
     ]
   },
   "key_findings": {
-    "fp32_baseline_tokens_per_sec": 16.52,
+    "fp32_baseline_tokens_per_sec": 19.0,
     "best_tokens_per_sec": 109.2,
-    "best_speedup": 6.61,
+    "best_speedup": 5.75,
     "best_quantization": "Q4_K_M",
-    "ram_reduction_percent": 68,
+    "ram_reduction_percent": 83,
     "wikitext2_ppl_ours": 8.73,
     "wikitext2_ppl_reference": 8.74,
     "quality_note": "Equivalent to independent reference (within 0.14%)",

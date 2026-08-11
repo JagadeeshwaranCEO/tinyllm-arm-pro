@@ -312,4 +312,49 @@
    averaged 3 prompts rather than 1.)
 
 - Status: Full pipeline operational. Day 26 = research report
-  sections 4.6-4.9 + README final update.
+  sections 4.6-4.9 + README final update.## Day 26 — August 11, 2026
+- Research report sections 4.6-4.9 (NEON FP32 kernels, I8MM INT8 kernels, Flash Attention 1329 t/s, Raspberry Pi 5 deployment guide)
+- Removed false 73.9% claim from README — decided to never publish unverified numbers
+- Added SETUP.md (clean setup guide), requirements.txt, chatbot.py (interactive chat CLI)
+- Dashboard: added live results table with latest benchmark data
+- Full README audit + rewrite of Key Results section
+- Pushed to GitHub origin/main ✅
+
+## Day 27 — August 11, 2026
+- Clean-machine test: fresh `git clone` + SETUP.md install on a blank machine
+  (simulates a judge cloning the repo from GitHub)
+- BUG #1: `torchaudio>=2.12.0` has no Python 3.14 wheel → removed from
+  requirements.txt (was never imported). Clean install now succeeds:
+  llama-cpp-python 0.3.34 (built from source), torch 2.13.0, transformers 5.15.0
+- BUG #2: chatbot.py crashed `AttributeError: 'function' object has no attribute
+  'apply_chat_template'` → rewrote chat_loop to use `llm.create_chat_completion`
+  with streaming. Chatbot verified working live on Q4_K_M/Metal.
+- Verified on clean machine: `--list-models`, `--detect-hardware` (M4, 17.2GB,
+  10 cores → Q4_K_M), `planner.py` (104.49 t/s predicted), `run_all.py --auto`
+  end to end: predicted 104.49 vs actual 110.80 t/s (6.0% error), RAM 0.71 vs
+  0.76 GB (8.0% error) → results/auto_mode_result.json
+- Refreshed native llama-bench numbers: Q4_K_M pp512=1328.27 tg128=119.98,
+  Q8_0 pp512=1367.95 tg128=75.56, Q2_K pp512=1289.67 tg128=128.9
+- BUG #3: `torch_dtype` deprecated in transformers 5.x → `dtype`
+- BUG #4: `device_map="auto"` silently fell back to CPU on MPS → explicit
+  `.to(device)`. Old "16.52 tok/s FP32 baseline" was measured through this
+  broken path (either CPU fallback or unmasked by chat-template bug below)
+- BUG #5: raw prompts → greedy argmax emitted `</s>` (EOS) after 1 token
+  (logits argmax = token 2). NOT an MPS bug (eager attention didn't help);
+  fixed by wrapping prompts with `tokenizer.apply_chat_template`
+- BUG #6: RAM showed −0.35 GB because MPS shared memory is not in process RSS
+  → `get_ram_usage()` now adds `torch.mps.current_allocated_memory()`
+- CORRECTED FP32 BASELINE (properly loaded on MPS, chat-template prompts):
+  ~19.0 tok/s (mean 19.24 across 6 runs, 18.3-19.9), RAM 4.10 GB, load 3.0s
+  → all derived numbers updated project-wide:
+    Q4_K_M speedup 6.61× → 5.75×
+    RAM reduction 68% → 83% (4.10GB → 0.71GB)
+    Load time 0.42s vs 3.86s → 3.0s FP32
+  (README, research_report.md, dashboard.html, master_results.json,
+   leaderboard.json, accuracy.json, run_all.py, leaderboard.py,
+   quant_benchmark.py, accuracy.py)
+- Historical dev_log entries kept as-is — the log records what was believed
+  on each day; this Day 27 entry is the public correction
+- Status: Day 1 of final week (4 days to submission). Clean machine ✅.
+  Remaining: run remaining benchmark scripts on clean machine, Day 2 = video
+  script + Devpost draft + README pass.
