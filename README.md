@@ -1,13 +1,46 @@
 # TinyLLM-ARM-Pro ⚡
 
-> Production-grade LLM inference engine for ARM — INT4 K-quant optimization,
-> Metal GPU acceleration, and MLPerf-style benchmarking on Apple Silicon.
+> A hardware-aware LLM inference optimizer for Arm64.
+> 1.1 billion parameters · one ARM chip · 5.75× faster.
+> **LLM inference for the other 6 billion. No GPU. No cloud. Just ARM.**
 
 [![ARM64](https://img.shields.io/badge/Architecture-ARM64-0091BD?style=flat-square&logo=arm)](https://github.com/JagadeeshwaranCEO/tinyllm-arm-pro)
 [![Python](https://img.shields.io/badge/Python-3.14-3776AB?style=flat-square&logo=python)](https://python.org)
 [![License](https://img.shields.io/badge/License-MIT-34d399?style=flat-square)](LICENSE)
 [![llama.cpp](https://img.shields.io/badge/Backend-llama.cpp-a78bfa?style=flat-square)](https://github.com/ggerganov/llama.cpp)
 [![Metal](https://img.shields.io/badge/GPU-Apple%20Metal-f59e0b?style=flat-square)](https://developer.apple.com/metal/)
+[![NEON](https://img.shields.io/badge/Kernels-NEON%20%2B%20I8MM-34d399?style=flat-square)](kernels/)
+
+---
+
+## 🚀 Mission Control — The Story, Visualized
+
+Open the animated mission report: hardware boot sequence, quantization leaderboard,
+register-level kernel animations (NEON + I8MM), Flash Attention warp speed, and
+cross-device portability — every number sourced from `results/`.
+
+> **[▶ Open Mission Control →](report/mission_control.html)** — a single self-contained
+> HTML file, zero dependencies, works offline. Open it in any browser.
+
+---
+
+## ⚡ Run It Yourself — 60 Seconds
+
+```bash
+git clone https://github.com/JagadeeshwaranCEO/tinyllm-arm-pro.git
+cd tinyllm-arm-pro
+pip install -r requirements.txt
+
+python run_all.py --auto          # detect hardware → recommend → validate → report
+python pipeline/chatbot.py --model Q4_K_M   # talk to your on-device LLM
+```
+
+One command detects your chip, recommends the optimal quantization, validates it
+with live inference, and reports the honest prediction error.
+
+![TinyLLM-ARM-Pro one-command pipeline — real run on Apple M4](report/demo.gif)
+
+*The real `run_all.py --auto` run on Apple M4 (Arm64) — no simulation.*
 
 ---
 
@@ -27,6 +60,7 @@
 ## 📊 Full Benchmark Leaderboard
 
 ### Speed vs Quantization Level
+> *Source: `benchmarks/leaderboard.py` — 4 prompts averaged, Metal GPU*
 
 | Model | Speed | Speedup | RAM | Load Time |
 |-------|-------|---------|-----|-----------|
@@ -37,6 +71,7 @@
 | **Q4_K_M** 👑 | **102.27 tok/s** | **5.38×** | **0.71 GB** | **0.42s** |
 
 ### Accuracy vs Speed Tradeoff (Perplexity Analysis)
+> *Source: `benchmarks/accuracy.py` — 100 prompts, same model and hardware*
 
 | Model | Speed | Speedup | Perplexity | Quality vs Q8_0 |
 |-------|-------|---------|------------|-----------------|
@@ -50,6 +85,10 @@
 > across all quantization levels tested. INT4 K-quant grouping aligns
 > optimally with ARM Metal GPU SIMD vector widths, enabling higher
 > throughput than even INT8 compression.
+>
+> *Note: Speed values vary between benchmark runs (Metal GPU load, system
+> state, prompt count). Both tables above are from the same hardware;
+> the accuracy benchmark runs more prompts and reports a higher peak.*
 
 ---
 

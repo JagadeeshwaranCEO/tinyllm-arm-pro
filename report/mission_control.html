@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TinyLLM-ARM-Pro | Mission Control</title>
+<style>
+:root {
+  --bg: #000008;
+  --cyan: #64c8ff;
+  --green: #34d399;
+  --violet: #a78bfa;
+  --amber: #f59e0b;
+  --text: #e2e8f0;
+  --dim: rgba(226, 232, 240, 0.45);
+  --panel: rgba(8, 18, 38, 0.55);
+  --line: rgba(100, 200, 255, 0.18);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Courier New', ui-monospace, monospace;
+  overflow-x: hidden;
+}
+canvas#stars {
+  position: fixed; inset: 0; z-index: 0;
+}
+.scanlines {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: repeating-linear-gradient(to bottom, rgba(255,255,255,0.015) 0 1px, transparent 1px 3px);
+  mix-blend-mode: overlay;
+}
+.vignette {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,10,0.65) 100%);
+}
+#progress {
+  position: fixed; top: 0; left: 0; height: 2px; z-index: 60;
+  background: linear-gradient(90deg, var(--cyan), var(--violet), var(--green));
+  width: 0%;
+}
+#nav {
+  position: fixed; right: 18px; top: 50%; transform: translateY(-50%);
+  z-index: 50; display: flex; flex-direction: column; gap: 10px;
+}
+#nav a {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: rgba(100, 200, 255, 0.22);
+  border: 1px solid rgba(100, 200, 255, 0.35);
+  transition: all .3s;
+}
+#nav a.on { background: var(--cyan); box-shadow: 0 0 12px var(--cyan); transform: scale(1.35); }
+.section {
+  position: relative; z-index: 2;
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 64px 20px;
+  text-align: center;
+}
+.kicker {
+  font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase;
+  color: var(--cyan); margin-bottom: 18px;
+}
+.title {
+  font-size: clamp(28px, 5vw, 52px); font-weight: 700; line-height: 1.15;
+  margin-bottom: 16px;
+}
+.title .accent {
+  background: linear-gradient(90deg, var(--cyan), var(--violet), var(--green));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.sub { color: var(--dim); font-size: clamp(13px, 1.6vw, 16px); max-width: 720px; line-height: 1.7; }
+.reveal { opacity: 0; transform: translateY(26px); transition: opacity .8s ease, transform .8s ease; }
+.reveal.in { opacity: 1; transform: none; }
+.glass {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 40px rgba(100, 200, 255, 0.06);
+}
+.badge-row { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 22px; }
+.chip {
+  font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 7px 14px; border-radius: 100px;
+  border: 1px solid var(--line); color: var(--dim);
+  background: rgba(100, 200, 255, 0.05);
+}
+.chip b { color: var(--cyan); font-weight: 700; }
+
+/* ── Terminal boot ─────────────────────────────── */
+#term {
+  width: min(760px, 92vw);
+  text-align: left;
+  padding: 26px 28px;
+  background: rgba(2, 12, 8, 0.85);
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  box-shadow: 0 0 60px rgba(52, 211, 153, 0.08);
+  font-size: 13px; line-height: 1.85;
+  color: var(--green);
+}
+#term .tl { opacity: 0; }
+#term .tl.show { opacity: 1; transition: opacity .25s; }
+#term .prompt { color: rgba(52,211,153,0.55); }
+#term .dim { color: rgba(52,211,153,0.6); }
+#term .cyan { color: var(--cyan); }
+#term .bold { font-weight: 700; }
+#term .warn { color: var(--amber); }
+#caret { display: inline-block; width: 9px; height: 15px; background: var(--green); vertical-align: middle; animation: blink 0.9s steps(1) infinite; margin-left: 2px; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── Big counter ───────────────────────────────── */
+.counter-hero { margin-top: 34px; }
+.counter-num {
+  font-size: clamp(64px, 12vw, 132px); font-weight: 700; line-height: 1;
+  background: linear-gradient(180deg, #fff, var(--cyan));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  text-shadow: 0 0 80px rgba(100, 200, 255, 0.35);
+}
+.counter-label { margin-top: 10px; letter-spacing: 0.3em; text-transform: uppercase; font-size: 12px; color: var(--dim); }
+
+/* ── Stack ─────────────────────────────────────── */
+#stack { gap: 0; }
+.stack-node {
+  position: relative; z-index: 2;
+  width: min(560px, 90vw);
+  padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+}
+.stack-node .lbl { font-size: 14px; text-align: left; }
+.stack-node .lbl small { display: block; color: var(--dim); font-size: 11px; margin-top: 3px; }
+.stack-node .val { font-size: 13px; color: var(--cyan); font-weight: 700; white-space: nowrap; }
+.stack-link {
+  width: 2px; height: 30px;
+  background: linear-gradient(var(--cyan), var(--violet));
+  box-shadow: 0 0 12px rgba(100, 200, 255, 0.5);
+  animation: pulseLine 2.4s ease-in-out infinite;
+}
+@keyframes pulseLine { 50% { opacity: 0.35; } }
+.layer-tag {
+  position: absolute; left: -14px; top: 50%; transform: translateY(-50%);
+  font-size: 9px; letter-spacing: 0.2em; color: var(--violet); writing-mode: vertical-rl;
+}
+
+/* ── Leaderboard orbit ─────────────────────────── */
+#orbit-stage { position: relative; width: min(460px, 92vw); aspect-ratio: 1; margin-top: 26px; }
+.ring { position: absolute; inset: 0; border-radius: 50%; border: 1px dashed rgba(100,200,255,0.15); }
+.ring.r2 { inset: 16%; }
+.ring.r3 { inset: 32%; }
+.orb {
+  position: absolute; top: 50%; left: 50%;
+  width: 74px; height: 74px; margin: -37px 0 0 -37px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 50%;
+  font-size: 12px; font-weight: 700;
+  background: radial-gradient(circle at 30% 25%, rgba(100,200,255,0.25), rgba(8,18,38,0.9));
+  border: 1px solid var(--cyan);
+  box-shadow: 0 0 26px rgba(100,200,255,0.28);
+}
+.orb.best {
+  width: 96px; height: 96px; margin: -48px 0 0 -48px;
+  border-color: var(--amber);
+  background: radial-gradient(circle at 30% 25%, rgba(245,158,11,0.3), rgba(8,18,38,0.95));
+  box-shadow: 0 0 42px rgba(245,158,11,0.45);
+}
+.orb small { font-weight: 400; font-size: 9px; color: var(--dim); }
+.orb.best small { color: rgba(245,158,11,0.8); }
+.orbit-center {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 11px; letter-spacing: 0.2em; color: var(--dim); text-align: center; line-height: 1.9;
+}
+.orbit-center b { display: block; font-size: 20px; color: var(--green); }
+
+/* ── Kernel lab ────────────────────────────────── */
+.lab-panel { width: min(760px, 92vw); padding: 22px; }
+.lab-tabs { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+.lab-tab {
+  font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 8px 16px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--line); color: var(--dim); background: transparent;
+  transition: all .25s;
+}
+.lab-tab.on { color: #000; background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 18px rgba(100,200,255,0.5); }
+#kernel-canvas { width: 100%; height: 320px; border-radius: 10px; background: rgba(2,8,16,0.6); }
+.lab-stats { display: flex; gap: 28px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+.lab-stat b { font-size: 26px; color: var(--cyan); display: block; }
+.lab-stat span { font-size: 10px; letter-spacing: 0.2em; color: var(--dim); text-transform: uppercase; }
+
+/* ── Warp ──────────────────────────────────────── */
+.warp-num { font-size: clamp(56px, 11vw, 120px); font-weight: 700; color: var(--violet);
+  text-shadow: 0 0 70px rgba(167, 139, 250, 0.5); }
+#token-stream { position: relative; width: min(700px, 92vw); height: 90px; margin-top: 26px; overflow: hidden; }
+#token-stream span {
+  position: absolute; white-space: nowrap; font-size: 12px; color: rgba(226,232,240,0.35);
+  animation: stream 3.4s linear infinite;
+}
+@keyframes stream { from { transform: translateX(105%); } to { transform: translateX(-105%); } }
+
+/* ── Surprise bars ─────────────────────────────── */
+.bar-row { width: min(560px, 88vw); margin-top: 10px; }
+.bar-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--dim); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 5px; }
+.bar-cap b { color: var(--text); }
+.bar-track { height: 16px; border-radius: 100px; background: rgba(255,255,255,0.05); overflow: hidden; }
+.bar-fill { height: 100%; width: 0; border-radius: 100px; transition: width 1.6s cubic-bezier(.2,.8,.2,1); }
+.bar-fill.cyan { background: linear-gradient(90deg, var(--cyan), #3b82f6); box-shadow: 0 0 16px rgba(100,200,255,0.5); }
+.bar-fill.green { background: linear-gradient(90deg, var(--green), #10b981); box-shadow: 0 0 16px rgba(52,211,153,0.5); }
+.bar-fill.violet { background: linear-gradient(90deg, var(--violet), #8b5cf6); box-shadow: 0 0 16px rgba(167,139,250,0.5); }
+.bar-fill.amber { background: linear-gradient(90deg, var(--amber), #ef4444); box-shadow: 0 0 16px rgba(245,158,11,0.5); }
+
+/* ── Portability ───────────────────────────────── */
+.dual { display: flex; gap: 18px; flex-wrap: wrap; justify-content: center; margin-top: 26px; }
+.device-card { width: min(330px, 90vw); padding: 20px; text-align: left; }
+.device-card h3 { font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--cyan); margin-bottom: 12px; }
+.device-card .row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-bottom: 1px dashed rgba(100,200,255,0.12); }
+.device-card .row span { color: var(--dim); }
+.device-card .row b { color: var(--text); font-weight: 700; }
+
+/* ── Planner ───────────────────────────────────── */
+.pred-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; width: min(640px, 92vw); margin-top: 24px; }
+.pred-cell { padding: 18px; text-align: left; }
+.pred-cell .m { font-size: 10px; letter-spacing: 0.2em; color: var(--dim); text-transform: uppercase; }
+.pred-cell .v { font-size: 26px; font-weight: 700; color: var(--green); margin-top: 6px; }
+.pred-cell .v.err { color: var(--amber); }
+
+/* ── Close ─────────────────────────────────────── */
+.metrics-strip { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; max-width: 860px; margin-top: 30px; }
+.met { padding: 12px 18px; min-width: 120px; }
+.met b { display: block; font-size: 20px; color: var(--cyan); }
+.met span { font-size: 9px; letter-spacing: 0.18em; color: var(--dim); text-transform: uppercase; }
+.cmd-card {
+  margin-top: 34px; padding: 20px 24px; text-align: left;
+  font-size: 12px; line-height: 2; color: var(--green);
+  background: rgba(2, 12, 8, 0.85);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.cmd-card .c { color: var(--cyan); }
+.scroll-hint { margin-top: 30px; font-size: 11px; letter-spacing: 0.3em; color: var(--dim); animation: bob 2s ease-in-out infinite; }
+@keyframes bob { 50% { transform: translateY(6px); } }
+
+#controls {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  z-index: 55; display: flex; gap: 8px;
+}
+#controls button {
+  font-family: inherit; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+  padding: 8px 16px; border-radius: 100px; cursor: pointer;
+  border: 1px solid var(--line); color: var(--dim); background: rgba(8,18,38,0.7);
+  backdrop-filter: blur(8px); transition: all .25s;
+}
+#controls button:hover { color: var(--cyan); border-color: var(--cyan); }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+<div class="scanlines"></div>
+<div class="vignette"></div>
+<div id="progress"></div>
+<div id="nav"></div>
+
+<!-- ══ BOOT ══ -->
+<section class="section" id="boot">
+  <div class="kicker">TinyLLM-ARM-Pro · Boot Sequence</div>
+  <div id="term">
+    <div class="tl"><span class="prompt">$</span> git clone https://github.com/JagadeeshwaranCEO/tinyllm-arm-pro.git</div>
+    <div class="tl dim">Cloning into 'tinyllm-arm-pro'... done.</div>
+    <div class="tl"><span class="prompt">$</span> cd tinyllm-arm-pro && pip install -r requirements.txt</div>
+    <div class="tl dim">llama-cpp-python 0.3.34 (Arm64, built from source) · torch 2.13.0 · transformers 5.15.0 — done.</div>
+    <div class="tl"><span class="prompt">$</span> python run_all.py --auto</div>
+    <div class="tl"><br>[ STEP 1 ] DETECTING HARDWARE...</div>
+    <div class="tl cyan">&nbsp;&nbsp;chip&nbsp;&nbsp;&nbsp;&nbsp;: Apple M4</div>
+    <div class="tl cyan">&nbsp;&nbsp;memory&nbsp;&nbsp;: 17.2 GB unified</div>
+    <div class="tl cyan">&nbsp;&nbsp;cores&nbsp;&nbsp;&nbsp;: 10 (CPU + GPU)</div>
+    <div class="tl cyan">&nbsp;&nbsp;gpu&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;: Metal</div>
+    <div class="tl"><br>[ STEP 2 ] RECOMMENDING QUANTIZATION...</div>
+    <div class="tl cyan">&nbsp;&nbsp;Q4_K_M → 5.75x speedup · 0.71 GB RAM · 0.42s load&nbsp;&nbsp;<span class="bold">← BEST</span></div>
+    <div class="tl"><br>[ STEP 3 ] VALIDATING LIVE...</div>
+    <div class="tl cyan">&nbsp;&nbsp;predicted : 104.49 tok/s</div>
+    <div class="tl cyan">&nbsp;&nbsp;actual&nbsp;&nbsp;&nbsp;: 108.05 tok/s &nbsp;(3.4% error)</div>
+    <div class="tl"><br>[ STEP 4 ] REPORTING...</div>
+    <div class="tl cyan">&nbsp;&nbsp;✅ saved results/auto_mode_result.json</div>
+    <div class="tl"><br><span class="warn">▸</span> LAUNCHING MISSION CONTROL<span id="caret"></span></div>
+  </div>
+  <div class="scroll-hint">SCROLL TO LAUNCH</div>
+</section>
+
+<!-- ══ MISSION ══ -->
+<section class="section" id="mission">
+  <div class="kicker reveal">Mission Statement</div>
+  <h1 class="title reveal">LLM inference for<br><span class="accent">the other 6 billion.</span></h1>
+  <p class="sub reveal">No GPU. No cloud. Just ARM. A hardware-aware inference optimizer that takes a 1.1B-parameter LLM, quantizes it with scientific rigor, and speaks the chip's own language — NEON lanes and I8MM dot products.</p>
+  <div class="counter-hero reveal">
+    <div class="counter-num" data-count="109.2" data-decimals="1">0</div>
+    <div class="counter-label">Peak Decode · tokens / sec · Apple M4</div>
+  </div>
+  <div class="badge-row reveal">
+    <span class="chip">5.75× over FP32</span>
+    <span class="chip">83% <b>less RAM</b></span>
+    <span class="chip">0.42s <b>model load</b></span>
+    <span class="chip">0.14% <b>quality delta</b></span>
+  </div>
+</section>
+
+<!-- ══ STACK ══ -->
+<section class="section" id="stack">
+  <div class="kicker reveal">Where The Speed Comes From</div>
+  <h2 class="title reveal">The Arm64 inference stack,<br>optimized at <span class="accent">every layer</span></h2>
+  <div style="margin-top:34px">
+    <div class="stack-node glass reveal"><span class="layer-tag">LAYER 1</span>
+      <div class="lbl">MODEL<small>TinyLlama 1.1B — chat-tuned</small></div>
+      <div class="val">1.1B params</div>
+    </div>
+    <div class="stack-link reveal"></div>
+    <div class="stack-node glass reveal"><span class="layer-tag">LAYER 2</span>
+      <div class="lbl">QUANTIZATION<small>K-quant mixed precision — Q4_K_M chosen by evidence, not habit</small></div>
+      <div class="val">5.75× faster</div>
+    </div>
+    <div class="stack-link reveal"></div>
+    <div class="stack-node glass reveal"><span class="layer-tag">LAYER 3</span>
+      <div class="lbl">RUNTIME<small>llama.cpp from source + Metal GPU offload</small></div>
+      <div class="val">−83% RAM</div>
+    </div>
+    <div class="stack-link reveal"></div>
+    <div class="stack-node glass reveal"><span class="layer-tag">LAYER 4</span>
+      <div class="lbl">OUR KERNELS<small>hand-written NEON FP32 + I8MM SMMLA — the same instruction family as Arm Compute Library</small></div>
+      <div class="val">12.52× / 12.48×</div>
+    </div>
+    <div class="stack-link reveal"></div>
+    <div class="stack-node glass reveal"><span class="layer-tag">LAYER 5</span>
+      <div class="lbl">APPLE M4<small>10 cores · 17.2 GB unified memory · Metal</small></div>
+      <div class="val">0.42s load</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LEADERBOARD ══ -->
+<section class="section" id="leaderboard">
+  <div class="kicker reveal">Quantization Leaderboard</div>
+  <h2 class="title reveal">Four models. One verdict:<br><span class="accent">Q4_K_M.</span></h2>
+  <div id="orbit-stage" class="reveal">
+    <div class="ring r1"></div>
+    <div class="ring r2"></div>
+    <div class="ring r3"></div>
+    <div class="orb" data-name="Q2_K"></div>
+    <div class="orb" data-name="Q5_K_M"></div>
+    <div class="orb" data-name="Q8_0"></div>
+    <div class="orb best" data-name="Q4_K_M"></div>
+    <div class="orbit-center"><b>1.1B</b>TinyLlama<br>ARM64 · Metal</div>
+  </div>
+  <div class="badge-row reveal">
+    <span class="chip">Fastest <b>Q4_K_M 102.3 t/s</b></span>
+    <span class="chip">Smallest <b>Q2_K 0.57 GB</b></span>
+    <span class="chip">Winner on <b>2 model families</b></span>
+    <span class="chip">Verified on <b>2 ARM64 machines</b></span>
+  </div>
+</section>
+
+<!-- ══ KERNEL LAB ══ -->
+<section class="section" id="lab">
+  <div class="kicker reveal">Kernel Lab — Register Level</div>
+  <h2 class="title reveal">We speak the chip's language:<br><span class="accent">128-bit SIMD lanes</span></h2>
+  <p class="sub reveal">Not framework magic — hand-written SIMD kernels, traced down to the register. Same instruction family Arm ships in its Compute Library.</p>
+  <div class="lab-panel glass reveal" style="margin-top:26px">
+    <div class="lab-tabs">
+      <button class="lab-tab on" data-mode="neon">NEON · FP32 FMLA</button>
+      <button class="lab-tab" data-mode="i8mm">I8MM · SMMLA INT8</button>
+    </div>
+    <canvas id="kernel-canvas"></canvas>
+    <div class="lab-stats">
+      <div class="lab-stat"><b data-count="12.52" data-decimals="2">0</b><span>NEON FP32 speedup</span></div>
+      <div class="lab-stat"><b data-count="12.48" data-decimals="2">0</b><span>I8MM INT8 speedup</span></div>
+      <div class="lab-stat"><b data-count="2" data-decimals="0">0</b><span>Arm64 devices verified</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ WARP ══ -->
+<section class="section" id="warp">
+  <div class="kicker reveal">Flash Attention · Prompt Processing</div>
+  <h2 class="title reveal">Warp speed prefill</h2>
+  <div class="warp-num" data-count="1329" data-decimals="0">0</div>
+  <div class="counter-label">tokens / sec — prompt processing · native llama-bench · Flash Attention</div>
+  <div id="token-stream" class="reveal"></div>
+</section>
+
+<!-- ══ SURPRISE ══ -->
+<section class="section" id="surprise">
+  <div class="kicker reveal">The Finding Nobody Expects</div>
+  <h2 class="title reveal">Same quality.<br><span class="accent">5.75× the speed.</span></h2>
+  <p class="sub reveal">Academic WikiText-2: Q4_K_M scores 8.73 PPL vs the 8.74 community reference — <b>within 0.14%</b>, while being 68% faster than INT8 and 5.75× faster than FP32. Quantization here is a science, not a shortcut.</p>
+  <div style="margin-top:30px; width:min(560px,88vw)">
+    <div class="bar-row reveal">
+      <div class="bar-cap"><span>Speed vs FP32</span><b><span class="v1">0</span>×</b></div>
+      <div class="bar-track"><div class="bar-fill cyan" data-w="57.5"></div></div>
+    </div>
+    <div class="bar-row reveal" style="margin-top:16px">
+      <div class="bar-cap"><span>Speed vs INT8 (Q8_0)</span><b><span class="v1">0</span>%</b></div>
+      <div class="bar-track"><div class="bar-fill violet" data-w="68"></div></div>
+    </div>
+    <div class="bar-row reveal" style="margin-top:16px">
+      <div class="bar-cap"><span>Memory vs FP32</span><b>−<span class="v1">0</span>%</b></div>
+      <div class="bar-track"><div class="bar-fill green" data-w="83"></div></div>
+    </div>
+    <div class="bar-row reveal" style="margin-top:16px">
+      <div class="bar-cap"><span>Quality retained (PPL)</span><b><span class="v1">0</span> / 8.74 ref</b></div>
+      <div class="bar-track"><div class="bar-fill amber" data-w="99.86"></div></div>
+    </div>
+  </div>
+  <div class="badge-row reveal">
+    <span class="chip">Also optimal on <b>Phi-2 2.7B</b> — model-agnostic</span>
+    <span class="chip">Decode retention <b>77.4%</b> at 88% context</span>
+  </div>
+</section>
+
+<!-- ══ PORTABILITY ══ -->
+<section class="section" id="portable">
+  <div class="kicker reveal">Portability — Beyond One Laptop</div>
+  <h2 class="title reveal">Write once.<br>Run on <span class="accent">any Arm64.</span></h2>
+  <p class="sub reveal">The same pipeline, the same commands, the same verdict — on a laptop and a cloud datacenter.</p>
+  <div class="dual">
+    <div class="device-card glass reveal">
+      <h3>Apple M4 · Local</h3>
+      <div class="row"><span>Device</span><b>Developer MacBook</b></div>
+      <div class="row"><span>NEON FP32 kernel</span><b>12.52×</b></div>
+      <div class="row"><span>I8MM INT8 kernel</span><b>12.48×</b></div>
+      <div class="row"><span>Peak decode</span><b>109.2 t/s</b></div>
+      <div class="row"><span>Recommendation</span><b>Q4_K_M</b></div>
+    </div>
+    <div class="device-card glass reveal">
+      <h3>Cobalt 100 · Cloud Arm64</h3>
+      <div class="row"><span>Device</span><b>GitHub Actions ubuntu-24.04-arm</b></div>
+      <div class="row"><span>NEON FP32 kernel</span><b>8.29–12.52×</b></div>
+      <div class="row"><span>I8MM INT8 kernel</span><b>6.60–10.14×</b></div>
+      <div class="row"><span>Correctness</span><b>All checks passed</b></div>
+      <div class="row"><span>Recommendation</span><b>Q4_K_M</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ PLANNER ══ -->
+<section class="section" id="planner">
+  <div class="kicker reveal">Adaptive Inference Planner</div>
+  <h2 class="title reveal">It tunes itself<br>to <span class="accent">your hardware.</span></h2>
+  <p class="sub reveal">Detects chip, RAM and cores — predicts performance before a single token — then validates live and reports the honest error.</p>
+  <div class="pred-grid">
+    <div class="pred-cell glass reveal">
+      <div class="m">Predicted speed</div>
+      <div class="v" data-count="104.49" data-decimals="2">0</div>
+      <div class="m">tok/s · planner estimate</div>
+    </div>
+    <div class="pred-cell glass reveal">
+      <div class="m">Actual speed</div>
+      <div class="v" data-count="108.05" data-decimals="2">0</div>
+      <div class="m">tok/s · live validation</div>
+    </div>
+    <div class="pred-cell glass reveal">
+      <div class="m">Prediction error</div>
+      <div class="v err" data-count="3.4" data-decimals="1">0</div>
+      <div class="m">% · honest, published</div>
+    </div>
+    <div class="pred-cell glass reveal">
+      <div class="m">RAM error</div>
+      <div class="v err" data-count="6.5" data-decimals="1">0</div>
+      <div class="m">% · predicted 0.71 vs actual 0.75 GB</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CLOSE ══ -->
+<section class="section" id="close">
+  <div class="kicker reveal">TinyLLM-ARM-Pro</div>
+  <h2 class="title reveal">LLM inference for<br><span class="accent">the other 6 billion.</span></h2>
+  <div class="metrics-strip">
+    <div class="met glass reveal"><b>109.2</b><span>peak t/s</span></div>
+    <div class="met glass reveal"><b>5.75×</b><span>vs FP32</span></div>
+    <div class="met glass reveal"><b>−83%</b><span>RAM</span></div>
+    <div class="met glass reveal"><b>1,329</b><span>prefill t/s</span></div>
+    <div class="met glass reveal"><b>12.52×</b><span>NEON</span></div>
+    <div class="met glass reveal"><b>12.48×</b><span>I8MM</span></div>
+    <div class="met glass reveal"><b>8.73</b><span>PPL vs 8.74</span></div>
+    <div class="met glass reveal"><b>2</b><span>model families</span></div>
+    <div class="met glass reveal"><b>2</b><span>ARM64 devices</span></div>
+  </div>
+  <div class="cmd-card glass reveal">
+    <div><span class="c">$</span> git clone https://github.com/JagadeeshwaranCEO/tinyllm-arm-pro.git</div>
+    <div><span class="c">$</span> cd tinyllm-arm-pro && pip install -r requirements.txt</div>
+    <div><span class="c">$</span> python run_all.py --auto <span style="color:var(--dim)"># detect → recommend → validate → report</span></div>
+    <div><span class="c">$</span> python pipeline/chatbot.py --model Q4_K_M <span style="color:var(--dim)"># talk to your on-device LLM</span></div>
+  </div>
+  <p class="sub reveal" style="margin-top:26px">MIT licensed · open source · every number in this room is reproducible from the repo.</p>
+  <div class="scroll-hint" style="margin-top:20px">▲ ▲ ▲</div>
+</section>
+
+<div id="controls">
+  <button id="btn-replay">Replay</button>
+  <button id="btn-skip">Skip boot</button>
+</div>
+
+<script>
+// ═══════════════ DATA — embedded from results/*.json ═══════════════
+const DATA = {
+  hw: { chip: 'Apple M4', ram: '17.2 GB', cores: '10', gpu: 'Metal' },
+  leaderboard: [
+    { name: 'Q2_K',   tok: 81.03, ram: 0.57, load: 0.35 },
+    { name: 'Q4_K_M', tok: 102.27, ram: 0.71, load: 0.42, best: true },
+    { name: 'Q5_K_M', tok: 80.71, ram: 0.82, load: 0.42 },
+    { name: 'Q8_0',   tok: 75.88, ram: 1.14, load: 0.67 },
+  ],
+  peakTok: 109.2, speedup: 5.75, ramPct: 83, load: 0.42,
+  wt2: { ours: 8.73, ref: 8.74, delta: 0.14, q8: 8.4459 },
+  pp512: 1329, tg128: 119.98,
+  kernels: { neon: 12.52, i8mm: 12.48 },
+  planner: { pred: 104.49, actual: 108.05, err: 3.4, ramPred: 0.71, ramActual: 0.75, ramErr: 6.5 },
+  stress: { ctx88: 77.4 }, phi2: 47.59,
+};
+
+// ═══════════════ Starfield ═══════════════
+const stars = document.getElementById('stars');
+const sctx = stars.getContext('2d');
+let starArr = [];
+function sizeStars() {
+  stars.width = innerWidth * devicePixelRatio;
+  stars.height = innerHeight * devicePixelRatio;
+  sctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+  const n = Math.min(240, Math.floor(innerWidth / 7));
+  starArr = Array.from({ length: n }, () => ({
+    x: Math.random() * innerWidth, y: Math.random() * innerHeight,
+    r: Math.random() * 1.3 + 0.3,
+    p: Math.random() * Math.PI * 2, sp: 0.4 + Math.random() * 1.4,
+    depth: 0.3 + Math.random() * 0.7,
+  }));
+}
+function drawStars(t, scroll) {
+  sctx.clearRect(0, 0, innerWidth, innerHeight);
+  for (const s of starArr) {
+    const tw = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(t * 0.001 * s.sp + s.p));
+    const y = s.y + scroll * 0.06 * s.depth;
+    sctx.globalAlpha = tw * (0.4 + 0.6 * s.depth);
+    sctx.fillStyle = '#cfe8ff';
+    sctx.beginPath();
+    sctx.arc(s.x, y, s.r * s.depth, 0, Math.PI * 2);
+    sctx.fill();
+  }
+  sctx.globalAlpha = 1;
+}
+addEventListener('resize', sizeStars);
+sizeStars();
+drawStars(performance.now(), 0);
+
+// ═══════════════ Progress + nav ═══════════════
+const ids = ['boot','mission','stack','leaderboard','lab','warp','surprise','portable','planner','close'];
+const navEl = document.getElementById('nav');
+ids.forEach(id => { const a = document.createElement('a'); a.href = '#' + id; a.dataset.id = id; navEl.appendChild(a); });
+const navDots = [...navEl.children];
+addEventListener('scroll', () => {
+  const h = document.documentElement;
+  document.getElementById('progress').style.width = (h.scrollTop / (h.scrollHeight - h.clientHeight) * 100) + '%';
+  let cur = ids[0];
+  for (const id of ids) {
+    const el = document.getElementById(id);
+    if (el && el.getBoundingClientRect().top < innerHeight * 0.5) cur = id;
+  }
+  navDots.forEach(d => d.classList.toggle('on', d.dataset.id === cur));
+  drawStars(performance.now(), h.scrollTop);
+});
+
+// ═══════════════ Boot sequence ═══════════════
+const bootLines = [...document.querySelectorAll('#term .tl')];
+let bootIdx = 0, bootDone = false;
+const BOOT_MS = [60, 300, 60, 600, 60, 260, 160, 160, 160, 160, 260, 320, 260, 200, 260, 200, 260, 120, 500];
+function bootStep() {
+  if (bootIdx >= bootLines.length) { bootDone = true; return; }
+  bootLines[bootIdx].classList.add('show');
+  bootIdx++;
+  if (bootIdx === 7) autoScrollIntoView('boot');
+  setTimeout(bootStep, BOOT_MS[bootIdx - 1] ?? 120);
+}
+function autoScrollIntoView(id) {
+  const el = document.getElementById(id);
+  const top = el.getBoundingClientRect().top + scrollY;
+  scrollTo({ top: top - 40, behavior: 'smooth' });
+}
+const skipBtn = document.getElementById('btn-skip');
+skipBtn.addEventListener('click', () => {
+  bootLines.forEach(l => l.classList.add('show'));
+  bootIdx = bootLines.length; bootDone = true;
+});
+
+// ═══════════════ Counters + reveals ═══════════════
+function animateValue(el, target, decimals, dur = 1600) {
+  const start = performance.now();
+  function tick(now) {
+    const p = Math.min((now - start) / dur, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = (target * ease).toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    if (p < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+const io = new IntersectionObserver(entries => {
+  for (const e of entries) {
+    if (!e.isIntersecting) continue;
+    e.target.classList.add('in');
+    e.target.querySelectorAll('[data-count]').forEach(c => animateValue(c, parseFloat(c.dataset.count), parseInt(c.dataset.decimals || '0')));
+    e.target.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w + '%'; });
+    e.target.querySelectorAll('.v1').forEach(v => v.textContent = v.closest('.bar-cap').dataset.v || v.textContent);
+    io.unobserve(e.target);
+  }
+}, { threshold: 0.25 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+// Surprise bar values
+const barCaps = document.querySelectorAll('#surprise .bar-cap');
+[['×', DATA.speedup], ['%', 68], ['%', DATA.ramPct], ['.', null]].forEach(([sfx, val], i) => {
+  const cap = barCaps[i];
+  const num = cap.querySelector('.v1');
+  num.dataset.v = val === null ? (DATA.wt2.ours + '/' + DATA.wt2.ref) : (val + sfx);
+  cap.dataset.v = num.dataset.v;
+});
+
+// ═══════════════ Leaderboard orbit ═══════════════
+const orbs = [...document.querySelectorAll('.orb')];
+const orbitStage = document.getElementById('orbit-stage');
+let orbitAngle = 0;
+(function orbitLoop() {
+  orbitAngle += 0.004;
+  const R = orbitStage.clientWidth / 2;
+  const rx = R - 18, ry = rx * 0.42;
+  orbs.forEach((o, i) => {
+    const a = orbitAngle + (i * Math.PI) / 2;
+    const x = Math.cos(a) * rx, y = Math.sin(a) * ry;
+    o.style.transform = `translate(${x}px, ${y}px)`;
+    o.style.zIndex = y > 0 ? 2 : 1;
+    o.style.opacity = y > 0 ? 1 : 0.45;
+  });
+  requestAnimationFrame(orbitLoop);
+})();
+orbs.forEach(o => {
+  const m = DATA.leaderboard.find(d => d.name === o.dataset.name);
+  o.innerHTML = `${m.name}<small>${m.tok.toFixed(1)} t/s · ${m.ram.toFixed(2)} GB</small>`;
+  if (m.best) o.innerHTML += '<small style="color:#f59e0b">BEST</small>';
+});
+
+// ═══════════════ Kernel lab canvas ═══════════════
+const kcanvas = document.getElementById('kernel-canvas');
+const kctx = kcanvas.getContext('2d');
+let kMode = 'neon', kStart = performance.now();
+function sizeKernel() {
+  kcanvas.width = kcanvas.clientWidth * devicePixelRatio;
+  kcanvas.height = kcanvas.clientHeight * devicePixelRatio;
+  kctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+}
+sizeKernel();
+addEventListener('resize', sizeKernel);
+
+function drawKernel(t) {
+  const W = kcanvas.clientWidth, H = kcanvas.clientHeight;
+  const el = (t - kStart) / 1000;
+  kctx.clearRect(0, 0, W, H);
+  kctx.fillStyle = '#020810';
+  kctx.fillRect(0, 0, W, H);
+
+  const cx = W / 2, cy = H / 2;
+  const laneW = 34, laneH = H - 110;
+  const nLanes = kMode === 'neon' ? 4 : 8;
+  const gap = 14;
+  const totalW = nLanes * laneW + (nLanes - 1) * gap;
+  const x0 = cx - totalW / 2;
+  const y0 = 30;
+  const cycle = 3.2;
+  const phase = el % cycle;
+  const step = Math.min(nLanes, Math.floor(phase / (cycle / nLanes)));
+  const progress = Math.min(1, (phase % (cycle / nLanes)) / (cycle / nLanes));
+
+  // Lanes
+  for (let i = 0; i < nLanes; i++) {
+    const x = x0 + i * (laneW + gap);
+    const active = i === step;
+    const lit = i < step || (i === step && progress > 0.4);
+    const c = kMode === 'neon' ? (active ? '#64c8ff' : lit ? '#2dd4bf' : '#1e3a5f') : (active ? '#a78bfa' : lit ? '#8b5cf6' : '#232a4a');
+    kctx.fillStyle = 'rgba(255,255,255,0.03)';
+    kctx.fillRect(x, y0, laneW, laneH);
+    kctx.strokeStyle = c;
+    kctx.lineWidth = active ? 2 : 1;
+    kctx.strokeRect(x, y0, laneW, laneH);
+    // FMA pulse inside active lane
+    if (active) {
+      kctx.fillStyle = 'rgba(255,255,255,0.12)';
+      kctx.fillRect(x, y0 + laneH * (1 - progress), laneW, laneH * progress * 0.9);
+    }
+    kctx.fillStyle = c;
+    kctx.font = 'bold 11px Courier New';
+    kctx.textAlign = 'center';
+    kctx.fillText(i.toString(), x + laneW / 2, y0 + laneH + 18);
+  }
+
+  // Lane value labels (top)
+  kctx.font = '11px Courier New';
+  for (let i = 0; i < nLanes; i++) {
+    const x = x0 + i * (laneW + gap);
+    kctx.fillStyle = 'rgba(226,232,240,0.4)';
+    kctx.textAlign = 'center';
+    kctx.fillText((i + 1).toString(), x + laneW / 2, y0 - 8);
+  }
+
+  // Instruction badge
+  const ins = kMode === 'neon' ? 'FMLA v0.4s, v1.4s, v2.4s   // 4 × FP32 fused multiply-add / cycle'
+                              : 'SMMLA v0.16b, v1.16b, v2.16b   // 8×8 INT8 dot product → INT32 / cycle';
+  kctx.fillStyle = kMode === 'neon' ? '#64c8ff' : '#a78bfa';
+  kctx.font = 'bold 13px Courier New';
+  kctx.textAlign = 'center';
+  kctx.fillText(ins, cx, H - 34);
+  kctx.fillStyle = 'rgba(226,232,240,0.35)';
+  kctx.font = '11px Courier New';
+  kctx.fillText(kMode === 'neon'
+    ? '128-bit NEON register · 4 SIMD lanes in parallel'
+    : '2 × 8-bit × 8-bit matrix multiply per cycle · pre-packed weights', cx, H - 14);
+
+  // Accumulator readout
+  const acc = (step + progress).toFixed(2);
+  kctx.fillStyle = '#34d399';
+  kctx.font = 'bold 16px Courier New';
+  kctx.textAlign = 'left';
+  kctx.fillText('ACC → ' + acc, 16, H - 18);
+  kctx.fillStyle = 'rgba(226,232,240,0.3)';
+  kctx.font = '10px Courier New';
+  kctx.fillText('cycle ' + (el % cycle).toFixed(2) + 's / ' + cycle.toFixed(1) + 's', 16, 18);
+}
+
+(function kernelLoop() {
+  drawKernel(performance.now());
+  requestAnimationFrame(kernelLoop);
+})();
+
+document.querySelectorAll('.lab-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.lab-tab').forEach(b => b.classList.remove('on'));
+    btn.classList.add('on');
+    kMode = btn.dataset.mode;
+    kStart = performance.now();
+  });
+});
+
+// ═══════════════ Token stream (warp) ═══════════════
+const stream = document.getElementById('token-stream');
+const SAMPLE = "the ARM architecture is a family of reduced instruction set computer architectures quantization reduces precision memory edge AI enables on-device inference without the cloud apple silicon unified memory transformer self-attention next token prediction inference optimization pruning ";
+(function streamLoop() {
+  const words = SAMPLE.trim().split(/\s+/);
+  const spans = words.map(w => {
+    const s = document.createElement('span');
+    s.textContent = w + ' ';
+    stream.appendChild(s);
+    return s;
+  });
+  spans.forEach((s, i) => {
+    s.style.animationDelay = (i * 0.08) + 's';
+    s.style.left = '0%';
+  });
+})();
+document.querySelectorAll('#token-stream span').forEach(s => s.style.animationDuration = (3.4 + Math.random() * 2) + 's');
+
+// ═══════════════ Replay walkthrough ═══════════════
+const replayBtn = document.getElementById('btn-replay');
+let replaying = false;
+replayBtn.addEventListener('click', () => {
+  if (replaying) return;
+  replaying = true;
+  bootLines.forEach(l => l.classList.remove('show'));
+  bootIdx = 0; bootDone = false;
+  scrollTo({ top: 0, behavior: 'instant' });
+  bootStep();
+  let i = 1;
+  const walk = setInterval(() => {
+    if (i >= ids.length) { clearInterval(walk); replaying = false; return; }
+    scrollTo({ top: document.getElementById(ids[i]).offsetTop - 30, behavior: 'smooth' });
+    i++;
+  }, 2600);
+});
+
+// ═══════════════ Live data hydrate (best-effort) ═══════════════
+async function hydrate() {
+  try {
+    const res = await fetch('../results/master_results.json');
+    if (!res.ok) return;
+    const m = await res.json();
+    const kf = m.key_findings || {};
+    if (kf.fp32_baseline_tokens_per_sec) { DATA.speedup = +(kf.best_speedup || DATA.speedup); }
+    if (kf.best_tokens_per_sec) DATA.peakTok = +kf.best_tokens_per_sec;
+    if (kf.ram_reduction_percent) DATA.ramPct = +kf.ram_reduction_percent;
+    const counter = document.querySelector('#mission .counter-num');
+    if (counter && kf.best_tokens_per_sec) {
+      counter.dataset.count = DATA.peakTok.toFixed(1);
+      animateValue(counter, DATA.peakTok, 1);
+    }
+  } catch (e) { /* offline — embedded data is canonical */ }
+}
+hydrate();
+
+// ═══════════════ Start ═══════════════
+setTimeout(bootStep, 400);
+</script>
+</body>
+</html>

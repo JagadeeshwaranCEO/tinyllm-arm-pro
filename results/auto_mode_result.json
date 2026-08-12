@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-11T09:19:58.995172",
+  "generated_at": "2026-08-11T09:51:36.228725",
   "mode": "auto",
   "model": "tinyllama",
   "hardware": {
@@ -8,7 +8,7 @@
     "os": "Darwin",
     "ram_gb": 17.2,
     "cpu_cores": 10,
-    "timestamp": "2026-08-11T09:19:58.097300",
+    "timestamp": "2026-08-11T09:51:34.904277",
     "chip": "Apple M4",
     "device_class": "Apple M4 (Flagship ARM)",
     "recommended_quant": "Q4_K_M",
@@ -16,11 +16,11 @@
   },
   "recommended_quant": "Q4_K_M",
   "predicted_speed": 104.49,
-  "actual_speed": 110.8,
-  "speed_error_pct": 6.0,
+  "actual_speed": 108.05,
+  "speed_error_pct": 3.4,
   "predicted_ram_gb": 0.706,
-  "actual_ram_gb": 0.763,
-  "ram_error_pct": 8.0,
+  "actual_ram_gb": 0.752,
+  "ram_error_pct": 6.5,
   "prediction_confirmed": true,
   "sample_output": "2. [1:55] I think if we want to understand ARM architecture, we have to understand the power consumption and the area requirements of the chip. The more area, the less power it consumes. So, the small"
 }
