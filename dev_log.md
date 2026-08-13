@@ -358,3 +358,27 @@
 - Status: Day 1 of final week (4 days to submission). Clean machine ✅.
   Remaining: run remaining benchmark scripts on clean machine, Day 2 = video
   script + Devpost draft + README pass.
+
+## Day 28 — August 13, 2026 (Final submission audit)
+- Final audit before Devpost submission:
+  - Mission Control page built (report/mission_control.html) — zero-dependency
+    animated mission report: boot sequence, orbiting leaderboard, NEON/I8MM
+    register-lane canvas animations, Flash Attention warp counter, quality
+    surprise bars, M4 + Cobalt 100 portability cards, planner, metrics close.
+  - Real pipeline demo GIF recorded from an actual `run_all.py --auto` run
+    on Apple M4 (report/demo.gif, 16s, numbers = predicted 104.49 vs actual
+    108.05 t/s) and embedded in README.
+  - Video runbook (report/video_script.md) — 8 shots, ~3 min, exact commands
+    + narration, mapped to each judge's focus.
+  - Devpost draft (report/devpost_draft.md) — full submission text mapped to
+    the judging rubric (Implementation 40%, WOW 25%, Impact 20%, UX 15%).
+  - CONTRIBUTING.md added; requirements.txt trimmed from 8 → 4 deps
+    (only what the code actually imports: llama-cpp-python, torch,
+    transformers, psutil).
+  - README benchmark tables now labeled with their source script
+    (leaderboard.py vs accuracy.py) so different run speeds are explainable.
+  - Dashboard footer links to Mission Control.
+  - HISTORY REWRITE: a 2.2GB model.safetensors committed early (before
+    models/ was gitignored) made the repo 1.6GB to clone. Purged from all
+    history with git-filter-repo → repo is now 10MB. Judges clone fast.
+- Status: submission-ready except the demo video (Day 3, per runbook).
