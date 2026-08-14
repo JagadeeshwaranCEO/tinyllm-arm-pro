@@ -382,3 +382,16 @@
     models/ was gitignored) made the repo 1.6GB to clone. Purged from all
     history with git-filter-repo → repo is now 10MB. Judges clone fast.
 - Status: submission-ready except the demo video (Day 3, per runbook).
+
+## Day 29 — August 14, 2026 (Demo video rendered)
+- Rendered the demo video autonomously:
+  1. Real terminal run intro (report/demo.gif footage, upscaled to 1080p)
+  2. Mission Control walkthrough recorded in headless Chromium at 1920x1080
+     30fps (2811 frames, eased scroll choreography per video runbook,
+     NEON → I8MM kernel tab switched mid-shot)
+  3. Captions burned in with Pillow (Menlo, timed to runbook VO)
+- Output: report/demo_video.mp4 — 1:50, 1080p, 11 MB, captioned, + report/demo_captions.srt
+- Optional next step: re-record S1 terminal hook + S7 chatbot chat live and
+  overlay voiceover using the SRT as a timing guide (per video_script.md)
+- Repo history fix (Day 28) verified via fresh clone: 29 MB, clean.
+- Status: submission-ready.

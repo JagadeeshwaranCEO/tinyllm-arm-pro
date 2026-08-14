@@ -1,0 +1,61 @@
+1
+00:00:00,500 --> 00:00:08,000
+1.1 billion parameters. One ARM chip. One command.
+Watch the pipeline think.
+
+2
+00:00:16,500 --> 00:00:24,500
+Most LLMs live in cloud GPUs that six billion people
+will never touch. TinyLLM-ARM-Pro makes inference run
+on the Arm64 chips people actually have.
+
+3
+00:00:25,000 --> 00:00:35,000
+The speed is engineered at every layer: K-quant Q4_K_M
+chosen by evidence, llama.cpp built from source for Arm64,
+Metal offload — and kernels written by hand.
+
+4
+00:00:37,000 --> 00:00:45,500
+Four quantization levels. One verdict: Q4_K_M.
+Fastest and most accurate — on two model families,
+two Arm64 machines.
+
+5
+00:00:45,800 --> 00:00:52,500
+At the bottom we speak the chip's language — 128-bit
+NEON registers, four lanes of fused multiply-add.
+
+6
+00:00:53,000 --> 00:01:00,000
+I8MM SMMLA eight-bit dot products — the same instruction
+family Arm ships in its Compute Library.
+Our kernels: 12.5x faster than scalar.
+
+7
+00:01:00,500 --> 00:01:07,500
+Flash Attention prefill: 1,329 tokens per second.
+
+8
+00:01:08,500 --> 00:01:18,500
+Quantization is a science, not a hack. Academic WikiText-2:
+8.73 perplexity against the community's 8.74 — the same
+quality at 5.75x the speed, in 83% less memory.
+
+9
+00:01:19,500 --> 00:01:27,500
+The same pipeline ran on two Arm64 machines — this M4,
+and a Cobalt 100 cloud instance. Same commands. Same verdict.
+Write once, run on any Arm64.
+
+10
+00:01:28,500 --> 00:01:36,500
+The planner predicts performance before a single token,
+then validates live and publishes the honest error:
+3.4 percent, in the real run.
+
+11
+00:01:37,500 --> 00:01:49,000
+TinyLLM-ARM-Pro. Open source. MIT licensed.
+Every number reproducible with one command.
+LLM inference for the other six billion.
